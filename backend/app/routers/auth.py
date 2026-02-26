@@ -10,12 +10,21 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
+    print(f"🔍 Tentativa de login para: {body.email}")
     user = authenticate_user(db, body.email, body.password)
     if not user:
+        # Debug extra para saber o motivo da falha
+        existing_user = db.query(User).filter(User.email == body.email).first()
+        if not existing_user:
+            print(f"❌ Erro: Usuário {body.email} NÃO encontrado no banco.")
+        else:
+            print(f"❌ Erro: Usuário encontrado, mas a SENHA NÃO CONFERE.")
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
         )
+    print(f"✅ Login bem-sucedido: {user.email}")
     data = {"sub": str(user.id)}
     return TokenResponse(
         access_token=create_access_token(data),
