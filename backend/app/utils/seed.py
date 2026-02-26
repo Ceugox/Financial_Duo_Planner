@@ -59,10 +59,17 @@ def seed():
         for email, password, name in admins:
             if not email or not password:
                 continue
+            
             existing = db.query(User).filter(User.email == email).first()
+            
             if existing:
-                print(f"[INFO]  Usuário {email} já existe, pulando.")
+                print(f"[INFO] Atualizando usuário {email}...")
+                existing.name = name
+                existing.hashed_password = hash_password(password)
+                existing.is_active = True
+                db.commit()
                 continue
+                
             user = User(
                 email=email,
                 name=name,
