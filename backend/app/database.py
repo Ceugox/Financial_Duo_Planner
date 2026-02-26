@@ -6,11 +6,16 @@ settings = get_settings()
 
 # SQLite needs check_same_thread=False; PostgreSQL ignores it via connect_args
 connect_args = {}
-if settings.database_url_fix.startswith("sqlite"):
+db_url = settings.database_url_fix
+
+if db_url.startswith("sqlite"):
+    print("⚠️  AVISO: USANDO BANCO DE DADOS SQLITE (TEMPORÁRIO)!")
     connect_args = {"check_same_thread": False}
+else:
+    print(f"✅ CONECTADO AO BANCO DE DADOS: {db_url.split(':')[0]}")
 
 engine = create_engine(
-    settings.database_url_fix,
+    db_url,
     connect_args=connect_args,
     echo=False,
 )
