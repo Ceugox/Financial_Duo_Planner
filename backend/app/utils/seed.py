@@ -54,6 +54,7 @@ def seed():
         admins = [
             (settings.ADMIN_EMAIL_1, settings.ADMIN_PASSWORD_1, settings.ADMIN_NAME_1),
             (settings.ADMIN_EMAIL_2, settings.ADMIN_PASSWORD_2, settings.ADMIN_NAME_2),
+            ("admin@teste.com", "123456", "Usuário de Teste"),
         ]
 
         for email, password, name in admins:
