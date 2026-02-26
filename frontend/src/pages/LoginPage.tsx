@@ -18,8 +18,13 @@ export function LoginPage() {
     try {
       await login(email, password)
       navigate('/')
-    } catch {
-      setError('Email ou senha incorretos.')
+    } catch (err: any) {
+      console.error("❌ ERRO NO LOGIN:", err);
+      if (!err.response) {
+        setError('Erro de conexão. Verifique se a URL do backend está correta e se o CORS está liberado.');
+      } else {
+        setError('Email ou senha incorretos.');
+      }
     } finally {
       setLoading(false)
     }
