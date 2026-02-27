@@ -132,6 +132,7 @@ def update_transaction(
         setattr(tx, field, value)
     db.commit()
     db.refresh(tx)
+    db.refresh(tx, ["category"])
     return tx
 
 
