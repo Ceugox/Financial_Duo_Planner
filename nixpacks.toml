@@ -1,11 +1,12 @@
 [phases.setup]
-nixPkgs = ["python310", "gcc", "postgresql"]
+nixPkgs = ["python310", "nodejs_20", "gcc", "postgresql"]
 
 [phases.install]
 cmds = [
     "python3 -m venv /opt/venv",
     "/opt/venv/bin/pip install --upgrade pip",
-    "/opt/venv/bin/pip install -r backend/requirements.txt"
+    "/opt/venv/bin/pip install -r backend/requirements.txt",
+    "cd frontend && npm install && npm run build"
 ]
 
 [start]

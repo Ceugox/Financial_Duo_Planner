@@ -1,6 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.database import create_tables
 
@@ -41,3 +44,23 @@ app.include_router(dashboard.router, prefix="/api/v1")
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ─── Serve React frontend (built by nixpacks) ────────────────────────────────
+
+_backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DIST_DIR = os.path.normpath(os.path.join(_backend_dir, "..", "frontend", "dist"))
+
+if os.path.isdir(DIST_DIR):
+    _assets_dir = os.path.join(DIST_DIR, "assets")
+    if os.path.isdir(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str):
+        # Serve specific static files (favicon, robots.txt, etc.)
+        candidate = os.path.normpath(os.path.join(DIST_DIR, full_path))
+        if candidate.startswith(DIST_DIR) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        # Fallback: let React Router handle the route
+        return FileResponse(os.path.join(DIST_DIR, "index.html"))
