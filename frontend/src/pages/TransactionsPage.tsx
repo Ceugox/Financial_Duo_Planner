@@ -212,7 +212,7 @@ export function TransactionsPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent title={editTx ? 'Editar Transação' : 'Nova Transação'}>
-          <TransactionForm transaction={editTx} onSuccess={() => setDialogOpen(false)} />
+          <TransactionForm key={editTx?.id ?? 'new'} transaction={editTx} onSuccess={() => setDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 

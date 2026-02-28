@@ -16,22 +16,22 @@ export function DashboardPage() {
   const { month, year } = currentMonthYear()
 
   const { data: summary, isLoading } = useQuery({
-    queryKey: ['dashboard-summary', month, year],
+    queryKey: ['dashboard', 'summary', month, year],
     queryFn: () => dashboardApi.summary(month, year),
   })
 
   const { data: monthlyChart, isLoading: loadingChart } = useQuery({
-    queryKey: ['dashboard-monthly-chart'],
+    queryKey: ['dashboard', 'monthly-chart'],
     queryFn: () => dashboardApi.monthlyChart(12),
   })
 
   const { data: categoryBreakdown } = useQuery({
-    queryKey: ['dashboard-category-breakdown', month, year],
+    queryKey: ['dashboard', 'category-breakdown', month, year],
     queryFn: () => dashboardApi.categoryBreakdown(month, year, 'expense'),
   })
 
   const { data: recentTransactions } = useQuery({
-    queryKey: ['dashboard-recent'],
+    queryKey: ['dashboard', 'recent'],
     queryFn: () => dashboardApi.recentTransactions(8),
   })
 

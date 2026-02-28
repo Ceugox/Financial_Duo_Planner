@@ -13,7 +13,7 @@ def list_investments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return db.query(Investment).filter(Investment.user_id == current_user.id).all()
+    return db.query(Investment).all()
 
 
 @router.post("", response_model=InvestmentResponse, status_code=status.HTTP_201_CREATED)
@@ -34,7 +34,7 @@ def investment_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    investments = db.query(Investment).filter(Investment.user_id == current_user.id).all()
+    investments = db.query(Investment).all()
     total_invested = sum(float(i.amount_invested) for i in investments)
     total_current = sum(float(i.current_value) for i in investments)
     gain_loss = total_current - total_invested
@@ -59,9 +59,7 @@ def get_investment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    inv = db.query(Investment).filter(
-        Investment.id == investment_id, Investment.user_id == current_user.id
-    ).first()
+    inv = db.query(Investment).filter(Investment.id == investment_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Investimento não encontrado")
     return inv
@@ -74,9 +72,7 @@ def update_investment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    inv = db.query(Investment).filter(
-        Investment.id == investment_id, Investment.user_id == current_user.id
-    ).first()
+    inv = db.query(Investment).filter(Investment.id == investment_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Investimento não encontrado")
     for field, value in body.model_dump(exclude_unset=True).items():
@@ -92,9 +88,7 @@ def delete_investment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    inv = db.query(Investment).filter(
-        Investment.id == investment_id, Investment.user_id == current_user.id
-    ).first()
+    inv = db.query(Investment).filter(Investment.id == investment_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Investimento não encontrado")
     db.delete(inv)

@@ -82,8 +82,8 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
           <label className="label">Valor (R$) *</label>
           <input
             type="number" required min="0.01" step="0.01"
-            value={form.amount || ''}
-            onChange={(e) => field('amount', parseFloat(e.target.value) || 0)}
+            value={form.amount === 0 ? '' : form.amount}
+            onChange={(e) => field('amount', e.target.valueAsNumber || 0)}
             className="input-field"
           />
         </div>

@@ -187,7 +187,7 @@ export function InvestmentsPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent title={editInv ? 'Editar Investimento' : 'Novo Investimento'}>
-          <InvestmentForm investment={editInv} onSuccess={() => setDialogOpen(false)} />
+          <InvestmentForm key={editInv?.id ?? 'new'} investment={editInv} onSuccess={() => setDialogOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

@@ -79,16 +79,16 @@ export function InvestmentForm({ investment, onSuccess }: Props) {
         <div>
           <label className="label">Valor Investido (R$) *</label>
           <input type="number" required min="0" step="0.01"
-            value={form.amount_invested || ''}
-            onChange={(e) => field('amount_invested', parseFloat(e.target.value) || 0)}
+            value={form.amount_invested === 0 ? '' : form.amount_invested}
+            onChange={(e) => field('amount_invested', e.target.valueAsNumber || 0)}
             className="input-field"
           />
         </div>
         <div>
           <label className="label">Valor Atual (R$) *</label>
           <input type="number" required min="0" step="0.01"
-            value={form.current_value || ''}
-            onChange={(e) => field('current_value', parseFloat(e.target.value) || 0)}
+            value={form.current_value === 0 ? '' : form.current_value}
+            onChange={(e) => field('current_value', e.target.valueAsNumber || 0)}
             className="input-field"
           />
         </div>

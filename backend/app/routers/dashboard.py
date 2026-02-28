@@ -50,7 +50,7 @@ def summary(
     month_balance = month_income - month_expense
     savings_rate = (month_balance / month_income * 100) if month_income > 0 else 0.0
 
-    investments = db.query(Investment).filter(Investment.user_id == current_user.id).all()
+    investments = db.query(Investment).all()
     total_invested = sum(float(i.amount_invested) for i in investments)
     total_current = sum(float(i.current_value) for i in investments)
 
