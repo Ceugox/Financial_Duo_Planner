@@ -23,6 +23,7 @@ def list_transactions(
     category_id: Optional[int] = Query(None),
     type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    user_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -42,6 +43,8 @@ def list_transactions(
         q = q.filter(Transaction.type == type)
     if search:
         q = q.filter(Transaction.description.ilike(f"%{search}%"))
+    if user_id:
+        q = q.filter(Transaction.user_id == user_id)
 
     total = q.count()
     items = q.order_by(Transaction.date.desc()).offset((page - 1) * page_size).limit(page_size).all()

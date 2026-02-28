@@ -23,4 +23,6 @@ export const authApi = {
     api.post<TokenResponse>('/auth/login', payload).then((r) => r.data),
 
   me: () => api.get<UserResponse>('/auth/me').then((r) => r.data),
+
+  users: () => api.get<UserResponse[]>('/auth/users').then((r) => r.data),
 }

@@ -32,6 +32,7 @@ export interface TransactionFilters {
   category_id?: number
   type?: string
   search?: string
+  user_id?: number
   page?: number
   page_size?: number
 }

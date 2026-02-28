@@ -53,6 +53,11 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/users", response_model=list[UserResponse])
+def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(User).filter(User.is_active == True).order_by(User.id).all()
+
+
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
