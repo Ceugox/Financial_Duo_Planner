@@ -31,7 +31,6 @@ def list_transactions(
     q = (
         db.query(Transaction)
         .options(joinedload(Transaction.category))
-        .filter(Transaction.user_id == current_user.id)
     )
     if month:
         q = q.filter(extract("month", Transaction.date) == month)
@@ -75,7 +74,6 @@ def monthly_totals(
             Transaction.type,
             func.sum(Transaction.amount).label("total"),
         )
-        .filter(Transaction.user_id == current_user.id)
         .group_by("month", Transaction.type)
         .order_by("month")
         .all()
@@ -108,7 +106,7 @@ def get_transaction(
     tx = (
         db.query(Transaction)
         .options(joinedload(Transaction.category))
-        .filter(Transaction.id == transaction_id, Transaction.user_id == current_user.id)
+        .filter(Transaction.id == transaction_id)
         .first()
     )
     if not tx:
@@ -123,9 +121,7 @@ def update_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tx = db.query(Transaction).filter(
-        Transaction.id == transaction_id, Transaction.user_id == current_user.id
-    ).first()
+    tx = db.query(Transaction).filter(Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
     for field, value in body.model_dump(exclude_unset=True).items():
@@ -142,9 +138,7 @@ def delete_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tx = db.query(Transaction).filter(
-        Transaction.id == transaction_id, Transaction.user_id == current_user.id
-    ).first()
+    tx = db.query(Transaction).filter(Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
     db.delete(tx)

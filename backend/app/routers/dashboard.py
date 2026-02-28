@@ -31,7 +31,6 @@ def summary(
     rows = (
         db.query(Transaction.type, func.sum(Transaction.amount).label("total"))
         .filter(
-            Transaction.user_id == current_user.id,
             extract("month", Transaction.date) == m,
             extract("year", Transaction.date) == y,
         )
@@ -77,7 +76,6 @@ def monthly_chart(
             Transaction.type,
             func.sum(Transaction.amount).label("total"),
         )
-        .filter(Transaction.user_id == current_user.id)
         .group_by("month", Transaction.type)
         .order_by("month")
         .all()
@@ -118,7 +116,6 @@ def category_breakdown(
             func.sum(Transaction.amount).label("total"),
         )
         .filter(
-            Transaction.user_id == current_user.id,
             Transaction.type == type,
             extract("month", Transaction.date) == m,
             extract("year", Transaction.date) == y,
@@ -153,7 +150,6 @@ def recent_transactions(
     return (
         db.query(Transaction)
         .options(joinedload(Transaction.category))
-        .filter(Transaction.user_id == current_user.id)
         .order_by(Transaction.date.desc(), Transaction.created_at.desc())
         .limit(limit)
         .all()
