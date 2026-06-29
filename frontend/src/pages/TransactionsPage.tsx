@@ -5,6 +5,7 @@ import { transactionsApi, type Transaction } from '@/api/transactions'
 import { categoriesApi } from '@/api/categories'
 import { authApi } from '@/api/auth'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
 import { formatBRL, formatDate } from '@/lib/formatters'
 
@@ -74,6 +75,7 @@ export function TransactionsPage() {
   const [userFilter, setUserFilter] = useState('')
   const [search, setSearch] = useState('')
   const [editTx, setEditTx] = useState<Transaction | undefined>()
+  const [deleteTx, setDeleteTx] = useState<Transaction | undefined>()
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const { data: transactions, isLoading } = useQuery({
@@ -96,6 +98,7 @@ export function TransactionsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
+      setDeleteTx(undefined)
     },
   })
 
@@ -182,7 +185,7 @@ export function TransactionsPage() {
       )}
 
       {/* Totals strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
+      <div className="summary-grid-3">
         {[
           { label: userFilter ? `Receitas — ${users?.find(u => String(u.id) === userFilter)?.name ?? ''}` : 'Receitas do Casal',  value: totalIncome,  colorVar: 'var(--sage-dark)',  bgVar: 'var(--sage-light)' },
           { label: userFilter ? `Despesas — ${users?.find(u => String(u.id) === userFilter)?.name ?? ''}` : 'Despesas do Casal',  value: totalExpense, colorVar: 'var(--coral)',       bgVar: 'var(--coral-light)' },
@@ -266,7 +269,7 @@ export function TransactionsPage() {
                           <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-deep)' }}>{tx.description}</p>
                           {tx.is_recurrent && (
                             <span style={{ fontSize: '0.62rem', background: 'var(--yellow-light)', color: 'var(--yellow-dark)', padding: '0.1rem 0.375rem', borderRadius: 99, fontWeight: 600 }}>
-                              Recorrente
+                              Recorrente{tx.recurrence_day ? ` dia ${tx.recurrence_day}` : ''}
                             </span>
                           )}
                         </div>
@@ -306,7 +309,7 @@ export function TransactionsPage() {
                           <Pencil size={14} />
                         </button>
                         <button
-                          onClick={() => { if (confirm('Excluir esta transação?')) deleteMutation.mutate(tx.id) }}
+                          onClick={() => setDeleteTx(tx)}
                           className="btn btn-danger btn-icon" title="Excluir"
                         >
                           <Trash2 size={14} />
@@ -326,6 +329,15 @@ export function TransactionsPage() {
           <TransactionForm key={editTx?.id ?? 'new'} transaction={editTx} onSuccess={() => setDialogOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(deleteTx)}
+        onOpenChange={(open) => { if (!open) setDeleteTx(undefined) }}
+        title="Excluir transação"
+        description={`A transação "${deleteTx?.description ?? ''}" será removida do histórico e dos totais do mês.`}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => { if (deleteTx) deleteMutation.mutate(deleteTx.id) }}
+      />
 
       <button onClick={openNew} className="fab hide-on-lg" title="Nova transação">
         <Plus size={22} />

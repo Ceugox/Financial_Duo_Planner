@@ -580,6 +580,16 @@ textarea.input-field { resize: none; }
 }
 
 /* Grid layouts por breakpoint */
+.summary-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .summary-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (min-width: 1280px) {
   .xl-cols-4     { grid-template-columns: repeat(4, 1fr); }
   .xl-cols-2     { grid-template-columns: repeat(2, 1fr); }

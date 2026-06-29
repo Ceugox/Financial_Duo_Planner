@@ -13,6 +13,10 @@ from app.schemas.purchase_goal import (
 router = APIRouter(prefix="/purchase-goals", tags=["purchase-goals"])
 
 
+def sync_goal_completion(goal: PurchaseGoal) -> None:
+    goal.is_completed = float(goal.saved_amount) >= float(goal.target_amount)
+
+
 @router.get("", response_model=list[PurchaseGoalResponse])
 def list_goals(
     db: Session = Depends(get_db),
@@ -33,6 +37,7 @@ def create_goal(
     current_user: User = Depends(get_current_user),
 ):
     goal = PurchaseGoal(**body.model_dump(), user_id=current_user.id)
+    sync_goal_completion(goal)
     db.add(goal)
     db.commit()
     db.refresh(goal)
@@ -67,6 +72,9 @@ def update_goal(
         raise HTTPException(status_code=404, detail="Objetivo não encontrado")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(goal, field, value)
+    if float(goal.saved_amount) > float(goal.target_amount):
+        raise HTTPException(status_code=400, detail="Valor guardado não pode superar a meta")
+    sync_goal_completion(goal)
     db.commit()
     db.refresh(goal)
     return goal
@@ -84,12 +92,8 @@ def deposit_to_goal(
     ).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Objetivo não encontrado")
-    if body.amount <= 0:
-        raise HTTPException(status_code=400, detail="Valor deve ser positivo")
-
-    goal.saved_amount = float(goal.saved_amount) + body.amount
-    if goal.saved_amount >= float(goal.target_amount):
-        goal.is_completed = True
+    goal.saved_amount = min(float(goal.saved_amount) + body.amount, float(goal.target_amount))
+    sync_goal_completion(goal)
     db.commit()
     db.refresh(goal)
     return goal

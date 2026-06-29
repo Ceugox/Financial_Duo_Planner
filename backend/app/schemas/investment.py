@@ -1,34 +1,36 @@
 from datetime import date, datetime
-from typing import Optional
-from pydantic import BaseModel
+from typing import Literal, Optional
+from pydantic import BaseModel, Field
+
+AssetType = Literal["acoes", "fiis", "renda_fixa", "crypto", "poupanca", "fundos", "outros"]
 
 
 class InvestmentCreate(BaseModel):
-    name: str
-    asset_type: str  # acoes|fiis|renda_fixa|crypto|poupanca|fundos|outros
-    amount_invested: float
-    current_value: float
-    quantity: Optional[float] = None
+    name: str = Field(min_length=1, max_length=255)
+    asset_type: AssetType
+    amount_invested: float = Field(ge=0)
+    current_value: float = Field(ge=0)
+    quantity: Optional[float] = Field(default=None, gt=0)
     purchase_date: Optional[date] = None
-    broker: Optional[str] = None
+    broker: Optional[str] = Field(default=None, max_length=100)
     notes: Optional[str] = None
 
 
 class InvestmentUpdate(BaseModel):
-    name: Optional[str] = None
-    asset_type: Optional[str] = None
-    amount_invested: Optional[float] = None
-    current_value: Optional[float] = None
-    quantity: Optional[float] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    asset_type: Optional[AssetType] = None
+    amount_invested: Optional[float] = Field(default=None, ge=0)
+    current_value: Optional[float] = Field(default=None, ge=0)
+    quantity: Optional[float] = Field(default=None, gt=0)
     purchase_date: Optional[date] = None
-    broker: Optional[str] = None
+    broker: Optional[str] = Field(default=None, max_length=100)
     notes: Optional[str] = None
 
 
 class InvestmentResponse(BaseModel):
     id: int
     name: str
-    asset_type: str
+    asset_type: AssetType
     amount_invested: float
     current_value: float
     quantity: Optional[float]

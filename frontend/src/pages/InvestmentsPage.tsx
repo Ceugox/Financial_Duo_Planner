@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { investmentsApi, type Investment } from '@/api/investments'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { InvestmentForm } from '@/components/investments/InvestmentForm'
 import { formatBRL, formatPercent } from '@/lib/formatters'
 
@@ -17,17 +18,30 @@ const ASSET_COLORS: Record<string, string> = {
   crypto: '#796C86', poupanca: '#b8afc4', fundos: '#4d8277', outros: '#c5e0c2',
 }
 
+interface SummaryCardItem {
+  label: string
+  value: string
+  color: string
+  accent: string
+  sub?: string
+}
+
 export function InvestmentsPage() {
   const qc = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editInv, setEditInv] = useState<Investment | undefined>()
+  const [deleteInv, setDeleteInv] = useState<Investment | undefined>()
 
   const { data: investments, isLoading } = useQuery({ queryKey: ['investments'], queryFn: investmentsApi.list })
   const { data: summary } = useQuery({ queryKey: ['investments-summary'], queryFn: investmentsApi.summary })
 
   const deleteMutation = useMutation({
     mutationFn: investmentsApi.delete,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['investments'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['investments'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      setDeleteInv(undefined)
+    },
   })
 
   const openNew  = () => { setEditInv(undefined); setDialogOpen(true) }
@@ -45,8 +59,8 @@ export function InvestmentsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
-        {[
+      <div className="summary-grid-3">
+        {([
           { label: 'Total Investido', value: formatBRL(summary?.total_invested ?? 0), color: 'var(--purple-deep)', accent: 'var(--purple)' },
           { label: 'Valor Atual',     value: formatBRL(summary?.total_current ?? 0),  color: 'var(--teal-dark)',   accent: 'var(--teal)' },
           {
@@ -56,7 +70,7 @@ export function InvestmentsPage() {
             color: (summary?.gain_loss ?? 0) >= 0 ? 'var(--sage-dark)' : 'var(--coral)',
             accent: (summary?.gain_loss ?? 0) >= 0 ? 'var(--sage)' : 'var(--coral)',
           },
-        ].map((s) => (
+        ] satisfies SummaryCardItem[]).map((s) => (
           <div key={s.label} style={{
             background: 'white',
             borderRadius: 'var(--radius-lg)',
@@ -71,8 +85,8 @@ export function InvestmentsPage() {
             <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
               {s.value}
             </p>
-            {(s as any).sub && (
-              <p style={{ fontSize: '0.75rem', color: s.color, marginTop: '0.125rem', fontWeight: 600 }}>{(s as any).sub}</p>
+            {s.sub && (
+              <p style={{ fontSize: '0.75rem', color: s.color, marginTop: '0.125rem', fontWeight: 600 }}>{s.sub}</p>
             )}
           </div>
         ))}
@@ -172,7 +186,7 @@ export function InvestmentsPage() {
                         <td>
                           <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                             <button onClick={() => openEdit(inv)} className="btn btn-ghost btn-icon"><Pencil size={14} /></button>
-                            <button onClick={() => { if (confirm('Excluir?')) deleteMutation.mutate(inv.id) }} className="btn btn-danger btn-icon"><Trash2 size={14} /></button>
+                            <button onClick={() => setDeleteInv(inv)} className="btn btn-danger btn-icon"><Trash2 size={14} /></button>
                           </div>
                         </td>
                       </tr>
@@ -190,6 +204,15 @@ export function InvestmentsPage() {
           <InvestmentForm key={editInv?.id ?? 'new'} investment={editInv} onSuccess={() => setDialogOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(deleteInv)}
+        onOpenChange={(open) => { if (!open) setDeleteInv(undefined) }}
+        title="Excluir investimento"
+        description={`O ativo "${deleteInv?.name ?? ''}" será removido da carteira e dos indicadores de alocação.`}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => { if (deleteInv) deleteMutation.mutate(deleteInv.id) }}
+      />
     </div>
   )
 }

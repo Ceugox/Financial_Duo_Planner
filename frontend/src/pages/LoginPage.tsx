@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { TrendingUp } from 'lucide-react'
+import axios from 'axios'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -18,9 +19,9 @@ export function LoginPage() {
     try {
       await login(email, password)
       navigate('/')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("❌ ERRO NO LOGIN:", err);
-      if (!err.response) {
+      if (!axios.isAxiosError(err) || !err.response) {
         setError('Erro de conexão. Verifique se a URL do backend está correta e se o CORS está liberado.');
       } else {
         setError('Email ou senha incorretos.');

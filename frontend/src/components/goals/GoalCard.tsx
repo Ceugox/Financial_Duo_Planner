@@ -5,6 +5,7 @@ import type { PurchaseGoal } from '@/api/goals'
 import { goalsApi } from '@/api/goals'
 import { formatBRL, formatDate } from '@/lib/formatters'
 import { Badge } from '@/components/ui/Badge'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 const PRIORITY_LABELS: Record<string, string> = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
 const PRIORITY_VARIANTS: Record<string, 'danger' | 'warning' | 'info'> = { alta: 'danger', media: 'warning', baixa: 'info' }
@@ -19,6 +20,7 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
   const qc = useQueryClient()
   const [depositAmount, setDepositAmount] = useState('')
   const [showDeposit, setShowDeposit] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const progress  = Math.min((goal.saved_amount / goal.target_amount) * 100, 100)
   const remaining = goal.target_amount - goal.saved_amount
@@ -38,7 +40,10 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: goalsApi.delete,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      setDeleteOpen(false)
+    },
   })
 
   return (
@@ -98,7 +103,7 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
           </div>
           <div style={{ display: 'flex', gap: '0.125rem', flexShrink: 0 }}>
             <button onClick={onEdit} className="btn btn-ghost btn-icon"><Pencil size={13} /></button>
-            <button onClick={() => { if (confirm('Excluir este objetivo?')) deleteMutation.mutate(goal.id) }} className="btn btn-danger btn-icon"><Trash2 size={13} /></button>
+            <button onClick={() => setDeleteOpen(true)} className="btn btn-danger btn-icon"><Trash2 size={13} /></button>
           </div>
         </div>
 
@@ -186,6 +191,15 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Excluir objetivo"
+        description={`O objetivo "${goal.name}" será removido junto com o progresso salvo nele.`}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(goal.id)}
+      />
     </article>
   )
 }

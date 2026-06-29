@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
 from functools import lru_cache
 
 
@@ -9,6 +10,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    ENVIRONMENT: str = "development"
     SECRET_KEY: str = "change-me-in-production-at-least-32-chars-long"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours
@@ -36,6 +38,15 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self):
+        if (
+            self.ENVIRONMENT.lower() == "production"
+            and self.SECRET_KEY == "change-me-in-production-at-least-32-chars-long"
+        ):
+            raise ValueError("SECRET_KEY must be configured in production")
+        return self
 
 
 @lru_cache

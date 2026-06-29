@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
@@ -6,25 +7,20 @@ from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserRe
 from app.services.auth_service import authenticate_user, create_access_token, create_refresh_token, decode_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
-    print(f"🔍 Tentativa de login para: {body.email}")
+    logger.info("Login attempt")
     user = authenticate_user(db, body.email, body.password)
     if not user:
-        # Debug extra para saber o motivo da falha
-        existing_user = db.query(User).filter(User.email == body.email).first()
-        if not existing_user:
-            print(f"❌ Erro: Usuário {body.email} NÃO encontrado no banco.")
-        else:
-            print(f"❌ Erro: Usuário encontrado, mas a SENHA NÃO CONFERE.")
-        
+        logger.warning("Login failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
         )
-    print(f"✅ Login bem-sucedido: {user.email}")
+    logger.info("Login succeeded for user_id=%s", user.id)
     data = {"sub": str(user.id)}
     return TokenResponse(
         access_token=create_access_token(data),

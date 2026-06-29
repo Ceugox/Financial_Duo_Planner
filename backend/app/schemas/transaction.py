@@ -1,36 +1,64 @@
 from datetime import date, datetime
-from typing import Optional
-from pydantic import BaseModel
+from typing import Literal, Optional
+from pydantic import BaseModel, Field, field_validator
 from app.schemas.category import CategoryResponse
 
 
 class TransactionCreate(BaseModel):
-    type: str  # income|expense
-    amount: float
-    description: str
+    type: Literal["income", "expense"]
+    amount: float = Field(gt=0)
+    description: str = Field(min_length=1, max_length=255)
     category_id: Optional[int] = None
-    payment_method: Optional[str] = None
+    payment_method: Optional[str] = Field(default=None, max_length=50)
     date: date
     is_recurrent: bool = False
     recurrence_day: Optional[int] = None
     notes: Optional[str] = None
 
+    @field_validator("category_id")
+    @classmethod
+    def validate_category_id(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and value <= 0:
+            raise ValueError("category_id deve ser positivo")
+        return value
+
+    @field_validator("recurrence_day")
+    @classmethod
+    def validate_recurrence_day(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and not 1 <= value <= 31:
+            raise ValueError("recurrence_day deve ficar entre 1 e 31")
+        return value
+
 
 class TransactionUpdate(BaseModel):
-    type: Optional[str] = None
-    amount: Optional[float] = None
-    description: Optional[str] = None
+    type: Optional[Literal["income", "expense"]] = None
+    amount: Optional[float] = Field(default=None, gt=0)
+    description: Optional[str] = Field(default=None, min_length=1, max_length=255)
     category_id: Optional[int] = None
-    payment_method: Optional[str] = None
+    payment_method: Optional[str] = Field(default=None, max_length=50)
     date: Optional[date] = None
     is_recurrent: Optional[bool] = None
     recurrence_day: Optional[int] = None
     notes: Optional[str] = None
 
+    @field_validator("category_id")
+    @classmethod
+    def validate_category_id(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and value <= 0:
+            raise ValueError("category_id deve ser positivo")
+        return value
+
+    @field_validator("recurrence_day")
+    @classmethod
+    def validate_recurrence_day(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and not 1 <= value <= 31:
+            raise ValueError("recurrence_day deve ficar entre 1 e 31")
+        return value
+
 
 class TransactionResponse(BaseModel):
     id: int
-    type: str
+    type: Literal["income", "expense"]
     amount: float
     description: str
     category_id: Optional[int]

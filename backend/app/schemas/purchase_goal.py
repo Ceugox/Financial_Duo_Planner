@@ -1,33 +1,41 @@
 from datetime import date, datetime
-from typing import Optional
-from pydantic import BaseModel
+from typing import Literal, Optional
+from pydantic import BaseModel, Field, model_validator
+
+Priority = Literal["alta", "media", "baixa"]
 
 
 class PurchaseGoalCreate(BaseModel):
-    name: str
-    target_amount: float
-    saved_amount: float = 0
-    priority: str = "media"  # alta|media|baixa
+    name: str = Field(min_length=1, max_length=255)
+    target_amount: float = Field(gt=0)
+    saved_amount: float = Field(default=0, ge=0)
+    priority: Priority = "media"
     target_date: Optional[date] = None
-    category: Optional[str] = None
-    image_url: Optional[str] = None
+    category: Optional[str] = Field(default=None, max_length=100)
+    image_url: Optional[str] = Field(default=None, max_length=500)
     notes: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_saved_amount(self):
+        if self.saved_amount > self.target_amount:
+            raise ValueError("saved_amount não pode ser maior que target_amount")
+        return self
 
 
 class PurchaseGoalUpdate(BaseModel):
-    name: Optional[str] = None
-    target_amount: Optional[float] = None
-    saved_amount: Optional[float] = None
-    priority: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    target_amount: Optional[float] = Field(default=None, gt=0)
+    saved_amount: Optional[float] = Field(default=None, ge=0)
+    priority: Optional[Priority] = None
     target_date: Optional[date] = None
-    category: Optional[str] = None
-    image_url: Optional[str] = None
+    category: Optional[str] = Field(default=None, max_length=100)
+    image_url: Optional[str] = Field(default=None, max_length=500)
     notes: Optional[str] = None
     is_completed: Optional[bool] = None
 
 
 class DepositRequest(BaseModel):
-    amount: float
+    amount: float = Field(gt=0)
 
 
 class PurchaseGoalResponse(BaseModel):
@@ -35,7 +43,7 @@ class PurchaseGoalResponse(BaseModel):
     name: str
     target_amount: float
     saved_amount: float
-    priority: str
+    priority: Priority
     target_date: Optional[date]
     category: Optional[str]
     image_url: Optional[str]

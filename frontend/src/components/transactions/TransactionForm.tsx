@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query'
 import { transactionsApi, type TransactionCreate, type Transaction } from '@/api/transactions'
 import { categoriesApi } from '@/api/categories'
@@ -10,11 +10,8 @@ interface Props {
 
 const PAYMENT_METHODS = ['Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Dinheiro', 'Transferência', 'Boleto']
 
-export function TransactionForm({ transaction, onSuccess }: Props) {
-  const qc = useQueryClient()
-  const today = new Date().toISOString().split('T')[0]
-
-  const [form, setForm] = useState<TransactionCreate>({
+function buildInitialForm(transaction: Transaction | undefined, today: string): TransactionCreate {
+  return {
     type: transaction?.type ?? 'expense',
     amount: transaction?.amount ?? 0,
     description: transaction?.description ?? '',
@@ -22,8 +19,20 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
     payment_method: transaction?.payment_method ?? null,
     date: transaction?.date ?? today,
     is_recurrent: transaction?.is_recurrent ?? false,
+    recurrence_day: transaction?.recurrence_day ?? null,
     notes: transaction?.notes ?? null,
-  })
+  }
+}
+
+export function TransactionForm({ transaction, onSuccess }: Props) {
+  const qc = useQueryClient()
+  const today = new Date().toISOString().split('T')[0]
+
+  const [form, setForm] = useState<TransactionCreate>(() => buildInitialForm(transaction, today))
+
+  useEffect(() => {
+    setForm(buildInitialForm(transaction, today))
+  }, [transaction, today])
 
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
   const filteredCategories = categories?.filter((c) => c.type === form.type || c.type === 'both') ?? []
@@ -42,6 +51,9 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
   const field = (key: keyof TransactionCreate, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }))
 
+  const setType = (type: TransactionCreate['type']) =>
+    setForm((prev) => ({ ...prev, type, category_id: null }))
+
   return (
     <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(form) }}
       style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
@@ -50,14 +62,14 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
       <div className="type-toggle">
         <button
           type="button"
-          onClick={() => field('type', 'expense')}
+          onClick={() => setType('expense')}
           className={form.type === 'expense' ? 'active-expense' : ''}
         >
           Despesa
         </button>
         <button
           type="button"
-          onClick={() => field('type', 'income')}
+          onClick={() => setType('income')}
           className={form.type === 'income' ? 'active-income' : ''}
         >
           Receita
@@ -148,6 +160,21 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
         />
         <span style={{ fontSize: '0.875rem', color: 'var(--purple-dark)', fontWeight: 500 }}>Transação recorrente</span>
       </label>
+
+      {form.is_recurrent && (
+        <div>
+          <label className="label">Dia da recorrência</label>
+          <input
+            type="number"
+            min="1"
+            max="31"
+            value={form.recurrence_day ?? ''}
+            onChange={(e) => field('recurrence_day', e.target.value ? Number(e.target.value) : null)}
+            placeholder="Usa o dia da data se ficar vazio"
+            className="input-field"
+          />
+        </div>
+      )}
 
       {mutation.isError && (
         <p style={{ fontSize: '0.85rem', color: 'var(--coral)', padding: '0.625rem 0.875rem', background: 'var(--coral-light)', borderRadius: 'var(--radius-sm)' }}>

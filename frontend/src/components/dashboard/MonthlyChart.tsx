@@ -9,7 +9,20 @@ interface Props {
   data: MonthlyChartItem[]
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipPayloadItem {
+  dataKey: string | number
+  fill?: string
+  name?: string
+  value: number
+}
+
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: TooltipPayloadItem[]
+  label?: string | number
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null
   return (
     <div style={{
@@ -22,9 +35,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       minWidth: 160,
     }}>
       <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--purple-deep)', marginBottom: '0.5rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-        {formatMonth(label as string)}
+        {formatMonth(String(label ?? ''))}
       </p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.dataKey} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.fill }} />

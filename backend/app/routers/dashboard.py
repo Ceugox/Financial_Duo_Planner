@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session, joinedload
@@ -70,20 +70,23 @@ def monthly_chart(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    year_part = extract("year", Transaction.date)
+    month_part = extract("month", Transaction.date)
     rows = (
         db.query(
-            func.strftime("%Y-%m", Transaction.date).label("month"),
+            year_part.label("year"),
+            month_part.label("month"),
             Transaction.type,
             func.sum(Transaction.amount).label("total"),
         )
-        .group_by("month", Transaction.type)
-        .order_by("month")
+        .group_by(year_part, month_part, Transaction.type)
+        .order_by(year_part, month_part)
         .all()
     )
 
     data: dict[str, dict] = {}
     for row in rows:
-        m = row.month
+        m = f"{int(row.year):04d}-{int(row.month):02d}"
         if m not in data:
             data[m] = {"income": 0.0, "expense": 0.0}
         data[m][row.type] = float(row.total)
@@ -104,7 +107,7 @@ def monthly_chart(
 def category_breakdown(
     month: Optional[int] = Query(None),
     year: Optional[int] = Query(None),
-    type: str = Query("expense"),
+    type: Literal["income", "expense"] = Query("expense"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
