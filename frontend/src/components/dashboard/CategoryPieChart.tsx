@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import type { CategoryBreakdownItem } from '@/api/dashboard'
-import { formatBRL } from '@/lib/formatters'
+import { formatBRL, formatPercent } from '@/lib/formatters'
 
 interface Props {
   data: CategoryBreakdownItem[]
@@ -103,7 +103,7 @@ export function CategoryPieChart({ data }: Props) {
                   borderRadius: 99,
                   fontWeight: 600,
                 }}>
-                  {d.percentage.toFixed(0)}%
+                  {formatPercent(d.percentage)}
                 </span>
               </div>
             </div>

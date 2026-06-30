@@ -1,6 +1,6 @@
 import { TrendingUp, TrendingDown, Wallet, PiggyBank } from 'lucide-react'
 import type { DashboardSummary } from '@/api/dashboard'
-import { formatBRL } from '@/lib/formatters'
+import { formatBRL, formatPercent } from '@/lib/formatters'
 
 interface Props {
   data: DashboardSummary
@@ -40,7 +40,7 @@ export function SummaryCards({ data }: Props) {
     },
     {
       label: 'Taxa de Poupança',
-      value: `${data.savings_rate.toFixed(1)}%`,
+      value: formatPercent(data.savings_rate),
       sub: 'do mês',
       icon: PiggyBank,
       type: 'savings',

@@ -56,11 +56,16 @@ if os.path.isdir(DIST_DIR):
     if os.path.isdir(_assets_dir):
         app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
 
+    def spa_response(path: str) -> FileResponse:
+        response = FileResponse(path)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.get("/{full_path:path}", include_in_schema=False)
     def serve_spa(full_path: str):
         # Serve specific static files (favicon, robots.txt, etc.)
         candidate = os.path.normpath(os.path.join(DIST_DIR, full_path))
         if candidate.startswith(DIST_DIR) and os.path.isfile(candidate):
-            return FileResponse(candidate)
+            return spa_response(candidate) if os.path.basename(candidate) == "index.html" else FileResponse(candidate)
         # Fallback: let React Router handle the route
-        return FileResponse(os.path.join(DIST_DIR, "index.html"))
+        return spa_response(os.path.join(DIST_DIR, "index.html"))
