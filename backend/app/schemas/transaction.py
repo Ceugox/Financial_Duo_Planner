@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date as date_type, datetime
 from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 from app.schemas.category import CategoryResponse
@@ -10,7 +10,7 @@ class TransactionCreate(BaseModel):
     description: str = Field(min_length=1, max_length=255)
     category_id: Optional[int] = None
     payment_method: Optional[str] = Field(default=None, max_length=50)
-    date: date
+    date: date_type
     is_recurrent: bool = False
     recurrence_day: Optional[int] = None
     notes: Optional[str] = None
@@ -36,7 +36,7 @@ class TransactionUpdate(BaseModel):
     description: Optional[str] = Field(default=None, min_length=1, max_length=255)
     category_id: Optional[int] = None
     payment_method: Optional[str] = Field(default=None, max_length=50)
-    date: Optional[date] = None
+    date: Optional[date_type] = None
     is_recurrent: Optional[bool] = None
     recurrence_day: Optional[int] = None
     notes: Optional[str] = None
@@ -64,7 +64,7 @@ class TransactionResponse(BaseModel):
     category_id: Optional[int]
     category: Optional[CategoryResponse]
     payment_method: Optional[str]
-    date: date
+    date: date_type
     is_recurrent: bool
     recurrence_day: Optional[int]
     notes: Optional[str]

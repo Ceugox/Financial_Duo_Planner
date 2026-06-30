@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query'
+import axios from 'axios'
 import { transactionsApi, type TransactionCreate, type Transaction } from '@/api/transactions'
 import { categoriesApi } from '@/api/categories'
 
@@ -9,6 +10,28 @@ interface Props {
 }
 
 const PAYMENT_METHODS = ['Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Dinheiro', 'Transferência', 'Boleto']
+
+function getErrorMessage(error: unknown): string {
+  if (!axios.isAxiosError(error)) {
+    return 'Erro ao salvar. Tente novamente.'
+  }
+
+  const detail = error.response?.data?.detail
+  if (typeof detail === 'string') return detail
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail
+      .map((item) => item?.msg)
+      .filter(Boolean)
+      .join(' ')
+  }
+
+  if (error.response?.status === 404) {
+    return 'Lançamento não encontrado. Atualize a lista e tente novamente.'
+  }
+
+  return 'Erro ao salvar. Tente novamente.'
+}
 
 function buildInitialForm(transaction: Transaction | undefined, today: string): TransactionCreate {
   return {
@@ -48,6 +71,14 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
     },
   })
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    mutation.mutate({
+      ...form,
+      recurrence_day: form.is_recurrent ? form.recurrence_day ?? null : null,
+    })
+  }
+
   const field = (key: keyof TransactionCreate, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -55,7 +86,7 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
     setForm((prev) => ({ ...prev, type, category_id: null }))
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(form) }}
+    <form onSubmit={handleSubmit}
       style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
     >
       {/* Type toggle */}
@@ -178,7 +209,7 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
 
       {mutation.isError && (
         <p style={{ fontSize: '0.85rem', color: 'var(--coral)', padding: '0.625rem 0.875rem', background: 'var(--coral-light)', borderRadius: 'var(--radius-sm)' }}>
-          Erro ao salvar. Tente novamente.
+          {getErrorMessage(mutation.error)}
         </p>
       )}
 

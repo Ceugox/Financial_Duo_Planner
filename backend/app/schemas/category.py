@@ -21,7 +21,7 @@ class CategoryUpdate(BaseModel):
 class CategoryResponse(BaseModel):
     id: int
     name: str
-    type: CategoryType
+    type: str
     icon: str
     color: str
     is_default: bool
