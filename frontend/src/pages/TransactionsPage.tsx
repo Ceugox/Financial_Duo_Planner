@@ -9,7 +9,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
 import { SettlementCard } from '@/components/transactions/SettlementCard'
 import { RecurringBanner } from '@/components/transactions/RecurringBanner'
-import { ReviewQueue } from '@/components/transactions/ReviewQueue'
 import { formatBRL, formatDate } from '@/lib/formatters'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -188,9 +187,6 @@ export function TransactionsPage() {
           </div>
         </div>
       )}
-
-      {/* Sugestões do Open Finance aguardando revisão */}
-      <ReviewQueue />
 
       {/* Recorrências ainda não lançadas */}
       <RecurringBanner month={month} year={year} />

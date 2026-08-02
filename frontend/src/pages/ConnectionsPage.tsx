@@ -5,6 +5,7 @@ import axios from 'axios'
 import { connectionsApi, type BankConnection, type SyncResult, type OfxImportResult, type InvestmentSyncResult } from '@/api/connections'
 import { transferRulesApi } from '@/api/transferRules'
 import { authApi } from '@/api/auth'
+import { ReviewQueue } from '@/components/transactions/ReviewQueue'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatDate } from '@/lib/formatters'
 
@@ -26,7 +27,11 @@ function SyncSummary({ result }: { result: SyncResult | OfxImportResult }) {
       color: 'var(--teal-dark)',
       fontWeight: 500,
     }}>
-      <span><strong>{result.imported}</strong> sugeridas para revisão (em Transações)</span>
+      <span><strong>{result.inserted}</strong> lançadas</span>
+      <span>· <strong>{result.transfers}</strong> transferências internas</span>
+      {result.needs_review > 0 && (
+        <span>· <strong>{result.needs_review}</strong> possíveis duplicatas aguardando revisão abaixo</span>
+      )}
       <span>· <strong>{result.skipped_duplicates}</strong> já existiam</span>
       {result.uncategorized > 0 && (
         <span>· <strong>{result.uncategorized}</strong> sem categoria (crie regras em Categorias)</span>
@@ -399,6 +404,9 @@ export function ConnectionsPage() {
           )}
         </div>
       </div>
+
+      {/* Possíveis duplicatas do import aguardando decisão humana */}
+      <ReviewQueue />
 
       {/* Contas ocultas / regras de transferência */}
       <TransferRulesCard />

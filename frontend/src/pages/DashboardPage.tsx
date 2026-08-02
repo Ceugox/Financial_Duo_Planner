@@ -103,7 +103,7 @@ export function DashboardPage() {
       {/* Sugestões do Open Finance aguardando revisão */}
       {review && review.summary.pending_count > 0 && (
         <Link
-          to="/transacoes"
+          to="/conexoes"
           className="animate-fade-up"
           style={{
             display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -116,8 +116,8 @@ export function DashboardPage() {
         >
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--teal-dark)', flex: 1 }}>
             {review.summary.pending_count === 1
-              ? '1 transação do banco aguardando sua revisão'
-              : `${review.summary.pending_count} transações do banco aguardando sua revisão`}
+              ? '1 possível duplicata do banco aguardando sua decisão'
+              : `${review.summary.pending_count} possíveis duplicatas do banco aguardando sua decisão`}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.78rem', fontWeight: 600, color: 'var(--teal-dark)' }}>
             Revisar <ArrowUpRight size={14} />

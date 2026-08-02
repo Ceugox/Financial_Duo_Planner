@@ -39,14 +39,18 @@ class ConnectionsStatus(BaseModel):
 
 
 class SyncResult(BaseModel):
-    imported: int
-    skipped_duplicates: int
+    inserted: int             # lançadas automaticamente como gasto/receita
+    transfers: int            # lançadas automaticamente como transferência interna
+    needs_review: int         # possíveis duplicatas de lançamento manual — ficam na fila
+    skipped_duplicates: int   # já importadas antes (external_id)
     uncategorized: int
     accounts: int
 
 
 class OfxImportResult(BaseModel):
-    imported: int
+    inserted: int
+    transfers: int
+    needs_review: int
     skipped_duplicates: int
     uncategorized: int
     parsed: int
@@ -57,15 +61,27 @@ def _import_entries(
     user_id: int,
     entries: list[dict],
     source: str,
-) -> tuple[int, int, int]:
-    """Cria SUGESTÕES (staged) com dedupe por external_id — nada entra nos
-    números do casal até ser aceito na fila de revisão.
+) -> dict:
+    """Triagem automática do import (pedido do Marcell: nada de aprovar 1 a 1).
 
-    Retorna (sugeridas, duplicadas, sem categoria).
+    - Transferência interna detectada (fatura de cartão, conta oculta, par
+      casado) → vira Transaction com is_transfer=True (fora dos números).
+    - Possível duplicata de lançamento confirmado (mesmo tipo/valor ±R$0,05,
+      ±3 dias) → fica pendente na fila de revisão; só esses pedem um clique.
+    - Resto → vira Transaction direto (pessoal por padrão; is_shared é
+      decisão humana).
+
+    Toda linha importada mantém um StagedTransaction como trilha de auditoria
+    e âncora do dedupe por external_id.
     """
+    from datetime import date as date_type
     from app.models.staged_transaction import StagedTransaction
+    from app.routers.review import _find_duplicate
+    from app.services.transfers import classify_description, detect_pairs, load_transfer_rules
 
     rules = load_rules(db)
+    transfer_rules = load_transfer_rules(db)
+
     external_ids = [e["external_id"] for e in entries]
     existing: set[str] = set()
     if external_ids:
@@ -76,34 +92,93 @@ def _import_entries(
         rows = db.query(StagedTransaction.external_id).filter(StagedTransaction.external_id.in_(external_ids)).all()
         existing |= {r[0] for r in rows}
 
-    from datetime import date as date_type
-
-    suggested = skipped = uncategorized = 0
+    # Normaliza as entradas novas e classifica transferência por descritor
+    new_rows: list[dict] = []
+    skipped = 0
     for entry in entries:
         if entry["external_id"] in existing:
             skipped += 1
             continue
-        category_id = categorize(entry["description"], rules)
-        if category_id is None:
-            uncategorized += 1
+        existing.add(entry["external_id"])
         entry_date = entry["date"]
         if isinstance(entry_date, str):
             entry_date = date_type.fromisoformat(entry_date[:10])
-        db.add(StagedTransaction(
-            external_id=entry["external_id"],
+        new_rows.append({
+            **entry,
+            "date": entry_date,
+            "transfer_reason": classify_description(entry["description"], transfer_rules),
+        })
+
+    # Par casado: entre as entradas novas ainda sem motivo e a fila pendente
+    class _P:
+        def __init__(self, pid, type_, amount, description, date_):
+            self.id, self.type, self.amount, self.description, self.date = pid, type_, amount, description, date_
+
+    candidates = [
+        _P(f"n{i}", r["type"], r["amount"], r["description"], r["date"])
+        for i, r in enumerate(new_rows) if not r["transfer_reason"]
+    ]
+    pending = db.query(StagedTransaction).filter(StagedTransaction.status == "pending").all()
+    candidates += [_P(f"p{s.id}", s.type, float(s.amount), s.description, s.date) for s in pending]
+    pair_reasons = detect_pairs(candidates)
+    for i, r in enumerate(new_rows):
+        if not r["transfer_reason"] and f"n{i}" in pair_reasons:
+            r["transfer_reason"] = pair_reasons[f"n{i}"]
+
+    inserted = transfers = needs_review = uncategorized = 0
+    now = datetime.now(timezone.utc)
+    for r in new_rows:
+        category_id = categorize(r["description"], rules)
+        staged = StagedTransaction(
+            external_id=r["external_id"],
             source=source,
-            type=entry["type"],
-            amount=entry["amount"],
-            description=entry["description"],
-            date=entry_date,
+            type=r["type"],
+            amount=r["amount"],
+            description=r["description"],
+            date=r["date"],
             suggested_category_id=category_id,
             user_id=user_id,
-        ))
-        existing.add(entry["external_id"])
-        suggested += 1
+        )
+        db.add(staged)
+
+        is_transfer = r["transfer_reason"] is not None
+        if not is_transfer and _find_duplicate(db, staged):
+            # Só possíveis duplicatas de lançamento manual esperam revisão humana
+            needs_review += 1
+            continue
+
+        if category_id is None and not is_transfer:
+            uncategorized += 1
+        tx = Transaction(
+            type=r["type"],
+            amount=r["amount"],
+            description=r["description"],
+            category_id=None if is_transfer else category_id,
+            date=r["date"],
+            user_id=user_id,
+            external_id=r["external_id"],
+            source=source,
+            is_shared=False,
+            is_transfer=is_transfer,
+        )
+        db.add(tx)
+        db.flush()
+        staged.status = "accepted"
+        staged.transaction_id = tx.id
+        staged.reviewed_at = now
+        if is_transfer:
+            transfers += 1
+        else:
+            inserted += 1
 
     db.commit()
-    return suggested, skipped, uncategorized
+    return {
+        "inserted": inserted,
+        "transfers": transfers,
+        "needs_review": needs_review,
+        "skipped_duplicates": skipped,
+        "uncategorized": uncategorized,
+    }
 
 
 @router.get("", response_model=ConnectionsStatus)
@@ -197,16 +272,11 @@ def sync_connection(
         logger.error("Sync Pluggy falhou: %s", exc)
         raise HTTPException(status_code=502, detail=str(exc))
 
-    imported, skipped, uncategorized = _import_entries(db, connection.user_id, entries, source="pluggy")
+    result = _import_entries(db, connection.user_id, entries, source="pluggy")
     connection.last_synced_at = datetime.now(timezone.utc)
     db.commit()
 
-    return SyncResult(
-        imported=imported,
-        skipped_duplicates=skipped,
-        uncategorized=uncategorized,
-        accounts=len(accounts),
-    )
+    return SyncResult(**result, accounts=len(accounts))
 
 
 class InvestmentSyncRequest(BaseModel):
@@ -374,10 +444,5 @@ async def import_ofx(
         "date": tx.date,
     } for tx in parsed]
 
-    imported, skipped, uncategorized = _import_entries(db, current_user.id, entries, source="ofx")
-    return OfxImportResult(
-        imported=imported,
-        skipped_duplicates=skipped,
-        uncategorized=uncategorized,
-        parsed=len(parsed),
-    )
+    result = _import_entries(db, current_user.id, entries, source="ofx")
+    return OfxImportResult(**result, parsed=len(parsed))

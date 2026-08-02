@@ -39,6 +39,6 @@ export const reviewApi = {
 
   acceptAll: () =>
     api
-      .post<{ accepted: number; skipped_duplicates: number; skipped_transfers: number }>('/review/accept-all')
+      .post<{ accepted: number; accepted_transfers: number; skipped_duplicates: number }>('/review/accept-all')
       .then((r) => r.data),
 }

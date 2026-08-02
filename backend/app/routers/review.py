@@ -58,9 +58,9 @@ class AcceptRequest(BaseModel):
 
 
 class AcceptAllResult(BaseModel):
-    accepted: int
-    skipped_duplicates: int
-    skipped_transfers: int
+    accepted: int             # lançadas como gasto/receita (pessoais por padrão)
+    accepted_transfers: int   # lançadas como transferência interna (fora dos números)
+    skipped_duplicates: int   # possíveis duplicatas — continuam na fila
 
 
 def _find_duplicate(db: Session, staged: StagedTransaction) -> Optional[Transaction]:
@@ -107,7 +107,7 @@ def _accept(
         type=staged.type,
         amount=staged.amount,
         description=staged.description,
-        category_id=category_id if category_id is not None else staged.suggested_category_id,
+        category_id=None if as_transfer else (category_id if category_id is not None else staged.suggested_category_id),
         date=staged.date,
         user_id=staged.user_id,
         external_id=staged.external_id,
@@ -226,19 +226,21 @@ def accept_all(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Aceita todas as pendentes SEM suspeita de duplicata nem de transferência
-    (essas ficam para revisão manual)."""
+    """Triagem automática de tudo que está pendente (mesma regra do import):
+    transferência detectada entra como transferência, possível duplicata de
+    lançamento manual fica na fila, o resto entra como lançamento pessoal."""
     pending = db.query(StagedTransaction).filter(StagedTransaction.status == "pending").all()
     transfer_reasons = _transfer_reasons(db, pending)
-    accepted = skipped = skipped_transfers = 0
+    accepted = accepted_transfers = skipped = 0
     for staged in pending:
         if staged.id in transfer_reasons:
-            skipped_transfers += 1
+            _accept(db, staged, None, False, as_transfer=True)
+            accepted_transfers += 1
             continue
         if _find_duplicate(db, staged):
             skipped += 1
             continue
-        _accept(db, staged, None, True)
+        _accept(db, staged, None, False)
         accepted += 1
     db.commit()
-    return AcceptAllResult(accepted=accepted, skipped_duplicates=skipped, skipped_transfers=skipped_transfers)
+    return AcceptAllResult(accepted=accepted, accepted_transfers=accepted_transfers, skipped_duplicates=skipped)

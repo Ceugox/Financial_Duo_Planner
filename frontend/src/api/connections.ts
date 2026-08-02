@@ -15,14 +15,18 @@ export interface ConnectionsStatus {
 }
 
 export interface SyncResult {
-  imported: number
+  inserted: number
+  transfers: number
+  needs_review: number
   skipped_duplicates: number
   uncategorized: number
   accounts: number
 }
 
 export interface OfxImportResult {
-  imported: number
+  inserted: number
+  transfers: number
+  needs_review: number
   skipped_duplicates: number
   uncategorized: number
   parsed: number
