@@ -43,7 +43,8 @@ def create_tables() -> None:
 # existentes, então aplicamos ALTER TABLE idempotente aqui (SQLite e Postgres).
 _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
     "transactions": [
-        ("is_shared", "BOOLEAN NOT NULL DEFAULT 1"),
+        # TRUE funciona no Postgres e no SQLite (>=3.23); "1" quebra o Postgres
+        ("is_shared", "BOOLEAN NOT NULL DEFAULT TRUE"),
         ("external_id", "VARCHAR(120)"),
         ("source", "VARCHAR(20) NOT NULL DEFAULT 'manual'"),
     ],
