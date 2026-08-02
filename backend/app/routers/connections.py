@@ -138,6 +138,8 @@ def _import_entries(
             date=r["date"],
             suggested_category_id=category_id,
             user_id=user_id,
+            account_name=r.get("account_name"),
+            account_type=r.get("account_type"),
         )
         db.add(staged)
 
@@ -160,6 +162,8 @@ def _import_entries(
             source=source,
             is_shared=False,
             is_transfer=is_transfer,
+            account_name=r.get("account_name"),
+            account_type=r.get("account_type"),
         )
         db.add(tx)
         db.flush()
@@ -252,12 +256,15 @@ def sync_connection(
         accounts = pluggy.list_accounts(connection.item_id)
         entries: list[dict] = []
         for account in accounts:
+            # Cartão de crédito na Pluggy: positivo = gasto; conta: negativo = débito
+            is_credit_card = (account.get("type") or "").upper() == "CREDIT"
+            account_label = (
+                f"{connection.nickname} · {'Cartão' if is_credit_card else account.get('name') or 'Conta'}"
+            )[:120]
             for tx in pluggy.list_transactions(account["id"], date_from):
                 amount = float(tx.get("amount") or 0)
                 if amount == 0:
                     continue
-                # Cartão de crédito na Pluggy: positivo = gasto; conta: negativo = débito
-                is_credit_card = (account.get("type") or "").upper() == "CREDIT"
                 is_expense = amount > 0 if is_credit_card else amount < 0
                 entries.append({
                     "external_id": f"pluggy:{tx['id']}",
@@ -265,6 +272,8 @@ def sync_connection(
                     "amount": abs(amount),
                     "description": (tx.get("description") or "Sem descrição")[:255],
                     "date": str(tx.get("date", ""))[:10],
+                    "account_name": account_label,
+                    "account_type": "credit" if is_credit_card else "checking",
                 })
     except pluggy.PluggyNotConfigured as exc:
         raise HTTPException(status_code=400, detail=str(exc))

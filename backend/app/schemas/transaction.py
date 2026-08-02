@@ -44,6 +44,8 @@ class TransactionUpdate(BaseModel):
     notes: Optional[str] = None
     is_shared: Optional[bool] = None
     is_transfer: Optional[bool] = None
+    account_name: Optional[str] = Field(default=None, max_length=120)
+    account_type: Optional[str] = Field(default=None, max_length=20)
 
     @field_validator("category_id")
     @classmethod
@@ -75,6 +77,8 @@ class TransactionResponse(BaseModel):
     is_shared: bool
     is_transfer: bool
     source: str
+    account_name: Optional[str]
+    account_type: Optional[str]
     user_id: int
     created_at: datetime
     updated_at: datetime

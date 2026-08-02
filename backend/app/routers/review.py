@@ -33,6 +33,7 @@ class ReviewItem(BaseModel):
     duplicate_of: Optional[str]   # descrição do lançamento manual parecido
     transfer_suspect: bool
     transfer_reason: Optional[str]  # ex.: pagamento de fatura, conta oculta, par casado
+    account_name: Optional[str]
 
     model_config = {"from_attributes": True}
 
@@ -120,6 +121,8 @@ def _accept(
         # Transferência interna: fora dos agregados e do acerto do casal
         is_shared=False if as_transfer else is_shared,
         is_transfer=as_transfer,
+        account_name=staged.account_name,
+        account_type=staged.account_type,
     )
     db.add(tx)
     db.flush()
@@ -161,6 +164,7 @@ def list_pending(
             duplicate_of=duplicate.description if duplicate else None,
             transfer_suspect=reason is not None,
             transfer_reason=reason,
+            account_name=staged.account_name,
         ))
 
     today = date.today()

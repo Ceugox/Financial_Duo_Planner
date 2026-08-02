@@ -31,6 +31,9 @@ class Transaction(Base):
     # Identificador externo p/ dedupe de imports (FITID do OFX, id da Pluggy)
     external_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, unique=True)
     source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")  # manual|ofx|pluggy
+    # Conta de origem do import (ex.: "Inter Marcell · Cartão") p/ visão por cartão
+    account_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    account_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # credit|checking
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

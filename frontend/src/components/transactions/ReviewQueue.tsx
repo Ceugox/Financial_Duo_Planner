@@ -48,7 +48,7 @@ function ReviewRow({ item, onDone }: { item: ReviewItem; onDone: () => void }) {
           )}
         </div>
         <p style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>
-          {formatDate(item.date)} · {item.source === 'pluggy' ? 'Open Finance' : 'OFX'}
+          {formatDate(item.date)} · {item.account_name ?? (item.source === 'pluggy' ? 'Open Finance' : 'OFX')}
           {item.possible_duplicate && item.duplicate_of ? ` · parecida com "${item.duplicate_of}"` : ''}
           {item.transfer_suspect && item.transfer_reason ? ` · ${item.transfer_reason}` : ''}
         </p>

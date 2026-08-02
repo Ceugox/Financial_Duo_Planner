@@ -15,6 +15,8 @@ export interface Transaction {
   is_shared: boolean
   is_transfer: boolean
   source: string
+  account_name: string | null
+  account_type: string | null
   user_id: number
   created_at: string
   updated_at: string
@@ -34,6 +36,7 @@ export interface TransactionFilters {
   year?: number
   category_id?: number
   type?: string
+  account?: string
   search?: string
   user_id?: number
   page?: number
@@ -76,6 +79,9 @@ export const transactionsApi = {
 
   delete: (id: number) =>
     api.delete(`/transactions/${id}`),
+
+  accounts: () =>
+    api.get<string[]>('/transactions/accounts').then((r) => r.data),
 
   monthlyTotals: (months = 12) =>
     api.get<MonthlyTotals[]>('/transactions/monthly-totals', { params: { months } }).then((r) => r.data),

@@ -14,6 +14,7 @@ export interface ReviewItem {
   duplicate_of: string | null
   transfer_suspect: boolean
   transfer_reason: string | null
+  account_name: string | null
 }
 
 export interface ReviewSummary {

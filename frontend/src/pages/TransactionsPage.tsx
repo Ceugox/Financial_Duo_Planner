@@ -74,6 +74,7 @@ export function TransactionsPage() {
   const [year, setYear] = useState(now.getFullYear())
   const [typeFilter, setTypeFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [accountFilter, setAccountFilter] = useState('')
   const [userFilter, setUserFilter] = useState('')
   const [search, setSearch] = useState('')
   const [editTx, setEditTx] = useState<Transaction | undefined>()
@@ -81,18 +82,20 @@ export function TransactionsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const { data: transactions, isLoading } = useQuery({
-    queryKey: ['transactions', month, year, typeFilter, categoryFilter, userFilter, search],
+    queryKey: ['transactions', month, year, typeFilter, categoryFilter, accountFilter, userFilter, search],
     queryFn: () => transactionsApi.list({
       month, year,
       type: typeFilter || undefined,
       category_id: categoryFilter ? Number(categoryFilter) : undefined,
+      account: accountFilter || undefined,
       user_id: userFilter ? Number(userFilter) : undefined,
       search: search || undefined,
-      page_size: 100,
+      page_size: 200,
     }),
   })
 
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
+  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: transactionsApi.accounts })
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: authApi.users })
 
   const deleteMutation = useMutation({
@@ -157,6 +160,15 @@ export function TransactionsPage() {
             <option value="">Todas</option>
             {categories?.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
+
+          {/* Conta / cartão de origem */}
+          {(accounts?.length ?? 0) > 0 && (
+            <select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} className="input-field" style={{ width: 'auto' }}>
+              <option value="">Todas as contas</option>
+              {accounts!.map((a) => <option key={a} value={a}>{a}</option>)}
+              <option value="manual">Lançados à mão</option>
+            </select>
+          )}
 
           {/* Search */}
           <div style={{ position: 'relative', flex: 1, minWidth: 140 }}>
@@ -285,6 +297,11 @@ export function TransactionsPage() {
                           {tx.is_transfer && (
                             <span style={{ fontSize: '0.62rem', background: 'var(--purple-muted, #ece9f6)', color: 'var(--purple-dark)', padding: '0.1rem 0.375rem', borderRadius: 99, fontWeight: 600 }}>
                               ⇄ Transferência
+                            </span>
+                          )}
+                          {tx.account_name && (
+                            <span style={{ fontSize: '0.62rem', color: 'var(--text-3)', fontWeight: 500, marginLeft: '0.25rem' }}>
+                              {tx.account_type === 'credit' ? '💳' : '🏦'} {tx.account_name}
                             </span>
                           )}
                         </div>

@@ -24,6 +24,8 @@ class StagedTransaction(Base):
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     suggested_category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    account_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    account_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     status: Mapped[str] = mapped_column(String(12), default="pending", server_default="pending")
     # pending|accepted|dismissed
     transaction_id: Mapped[Optional[int]] = mapped_column(ForeignKey("transactions.id"), nullable=True)

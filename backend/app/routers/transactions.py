@@ -31,6 +31,7 @@ def list_transactions(
     category_id: Optional[int] = Query(None),
     type: Optional[Literal["income", "expense"]] = Query(None),
     is_transfer: Optional[bool] = Query(None),
+    account: Optional[str] = Query(None, max_length=120),
     search: Optional[str] = Query(None),
     user_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
@@ -52,6 +53,9 @@ def list_transactions(
         q = q.filter(Transaction.type == type)
     if is_transfer is not None:
         q = q.filter(Transaction.is_transfer.is_(is_transfer))
+    if account:
+        # "manual" = lançado à mão (sem conta de origem)
+        q = q.filter(Transaction.account_name.is_(None) if account == "manual" else Transaction.account_name == account)
     if search:
         q = q.filter(Transaction.description.ilike(f"%{search}%"))
     if user_id:
@@ -75,6 +79,22 @@ def create_transaction(
     db.refresh(tx)
     db.refresh(tx, ["category"])
     return tx
+
+
+@router.get("/accounts", response_model=list[str])
+def list_accounts(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Contas/cartões de origem distintos (para o filtro 'por conta')."""
+    rows = (
+        db.query(Transaction.account_name)
+        .filter(Transaction.account_name.isnot(None))
+        .distinct()
+        .order_by(Transaction.account_name)
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 @router.get("/monthly-totals", response_model=list[MonthlyTotals])

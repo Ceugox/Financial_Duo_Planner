@@ -49,6 +49,12 @@ _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("external_id", "VARCHAR(120)"),
         ("source", "VARCHAR(20) NOT NULL DEFAULT 'manual'"),
         ("is_transfer", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("account_name", "VARCHAR(120)"),
+        ("account_type", "VARCHAR(20)"),
+    ],
+    "staged_transactions": [
+        ("account_name", "VARCHAR(120)"),
+        ("account_type", "VARCHAR(20)"),
     ],
     "investments": [
         ("ticker", "VARCHAR(40)"),
