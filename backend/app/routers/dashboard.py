@@ -91,13 +91,28 @@ def monthly_chart(
             data[m] = {"income": 0.0, "expense": 0.0}
         data[m][row.type] = float(row.total)
 
-    sorted_months = sorted(data.keys())[-months:]
+    if not data:
+        return []
+
+    # Zero-fill: meses sem lançamentos entram com 0 para as barras não "pularem"
+    first_key = sorted(data.keys())[0]
+    today = date.today()
+    fy, fm = int(first_key[:4]), int(first_key[5:7])
+    all_months: list[str] = []
+    y, mo = fy, fm
+    while (y, mo) <= (today.year, today.month):
+        all_months.append(f"{y:04d}-{mo:02d}")
+        mo += 1
+        if mo > 12:
+            mo, y = 1, y + 1
+
+    sorted_months = all_months[-months:]
     return [
         MonthlyChartItem(
             month=m,
-            income=data[m].get("income", 0.0),
-            expense=data[m].get("expense", 0.0),
-            balance=data[m].get("income", 0.0) - data[m].get("expense", 0.0),
+            income=data.get(m, {}).get("income", 0.0),
+            expense=data.get(m, {}).get("expense", 0.0),
+            balance=data.get(m, {}).get("income", 0.0) - data.get(m, {}).get("expense", 0.0),
         )
         for m in sorted_months
     ]

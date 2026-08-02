@@ -8,6 +8,10 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { TransactionsPage } from '@/pages/TransactionsPage'
 import { InvestmentsPage } from '@/pages/InvestmentsPage'
 import { GoalsPage } from '@/pages/GoalsPage'
+import { BudgetPage } from '@/pages/BudgetPage'
+import { AnalysisPage } from '@/pages/AnalysisPage'
+import { CategoriesPage } from '@/pages/CategoriesPage'
+import { ConnectionsPage } from '@/pages/ConnectionsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,8 +38,12 @@ export default function App() {
             >
               <Route index element={<DashboardPage />} />
               <Route path="transacoes" element={<TransactionsPage />} />
+              <Route path="orcamento" element={<BudgetPage />} />
+              <Route path="analise" element={<AnalysisPage />} />
               <Route path="investimentos" element={<InvestmentsPage />} />
               <Route path="objetivos" element={<GoalsPage />} />
+              <Route path="categorias" element={<CategoriesPage />} />
+              <Route path="conexoes" element={<ConnectionsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

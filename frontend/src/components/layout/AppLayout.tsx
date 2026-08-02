@@ -8,7 +8,7 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--cream)' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--bg)' }}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main area — desktop offset by sidebar width */}

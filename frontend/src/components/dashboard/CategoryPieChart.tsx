@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { PieChart as PieChartIcon } from 'lucide-react'
 import type { CategoryBreakdownItem } from '@/api/dashboard'
 import { formatBRL, formatPercent } from '@/lib/formatters'
 
@@ -14,7 +15,7 @@ export function CategoryPieChart({ data }: Props) {
           <h3 className="card-title">Por Categoria</h3>
         </div>
         <div className="empty-state">
-          <div className="empty-state-icon">📊</div>
+          <div className="empty-state-icon"><PieChartIcon size={26} color="var(--purple-light)" /></div>
           <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-dark)', marginBottom: '0.25rem' }}>
             Sem despesas
           </p>

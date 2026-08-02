@@ -27,6 +27,7 @@ export function DialogContent({ title, children, className }: DialogContentProps
       />
       <RadixDialog.Content
         className={cn(className)}
+        aria-describedby={undefined}
         style={{
           position: 'fixed',
           left: '50%',

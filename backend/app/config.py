@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD_2: str = ""
     ADMIN_NAME_2: str = "Usuário 2"
 
+    # Open Finance via Pluggy (crie a aplicação em dashboard.pluggy.ai)
+    PLUGGY_CLIENT_ID: str = ""
+    PLUGGY_CLIENT_SECRET: str = ""
+
+    # Token opcional do brapi.dev para cotações da B3 (grátis no plano free)
+    BRAPI_TOKEN: str = ""
+
     @property
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]

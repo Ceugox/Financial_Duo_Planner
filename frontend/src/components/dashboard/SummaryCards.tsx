@@ -56,13 +56,7 @@ export function SummaryCards({ data }: Props) {
   }
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, 1fr)',
-      gap: '0.875rem',
-    }}
-      className="xl-cols-4"
-    >
+    <div className="summary-grid-4">
       {cards.map((card, i) => (
         <article
           key={card.label}

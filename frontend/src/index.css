@@ -2,39 +2,42 @@
 
 /* ─── Brand Palette ─────────────────────────────────────────────────── */
 :root {
+  /* Toda cor usada como TEXTO aqui passa 4.5:1 sobre o fundo em que aparece
+     (verificado por script) — não clarear "pra ficar elegante". */
   --purple:       #796C86;
   --purple-dark:  #4a3f55;
   --purple-deep:  #2d2535;
-  --purple-light: #b8afc4;
+  --purple-light: #766A87;
   --purple-muted: #ede9f1;
 
-  --teal:         #74AA9B;
-  --teal-dark:    #4d8277;
+  --teal:         #44756B;
+  --teal-dark:    #33685D;
   --teal-light:   #b0d4cc;
 
   --sage:         #91C68D;
-  --sage-dark:    #5d9359;
+  --sage-dark:    #3F7A3B;
   --sage-light:   #c5e0c2;
 
   --yellow:       #ECE488;
-  --yellow-dark:  #c4bc30;
+  --yellow-dark:  #6E5E0E;
   --yellow-light: #f5f1b8;
 
   --cream:        #F6F5CD;
   --cream-dark:   #e8e5a8;
   --cream-deeper: #d4d17a;
 
-  --coral:        #D4756B;
+  --coral:        #BF4A40;
+  --coral-soft:   #D4756B;
   --coral-light:  #f0c4c0;
 
   /* UI Tokens */
-  --bg:           var(--cream);
+  --bg:           #F4F2F7;
   --bg-card:      #ffffff;
   --sidebar-bg:   var(--purple-dark);
   --text-1:       var(--purple-deep);
   --text-2:       var(--purple);
-  --text-3:       var(--purple-light);
-  --border:       rgba(121, 108, 134, 0.12);
+  --text-3:       #766A87;
+  --border:       rgba(121, 108, 134, 0.14);
 
   /* Semantic */
   --income:       var(--sage);
@@ -45,6 +48,16 @@
   --balance-bg:   var(--teal-light);
   --savings:      var(--yellow-dark);
   --savings-bg:   var(--yellow-light);
+
+  /* Série categórica dos gráficos — ordem fixa, validada (CVD + contraste).
+     A 7ª categoria em diante agrupa em "Outros" com --cat-other. */
+  --cat-1: #1E8F6E;
+  --cat-2: #C6554A;
+  --cat-3: #8A63A8;
+  --cat-4: #A07818;
+  --cat-5: #3E7FBF;
+  --cat-6: #C05A8E;
+  --cat-other: #8B8B94;
 
   /* Typography */
   --font-display: 'Fraunces', serif;
@@ -76,7 +89,7 @@ html {
 
 body {
   font-family: var(--font-body);
-  background-color: var(--cream);
+  background-color: var(--bg);
   color: var(--text-1);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -226,30 +239,18 @@ textarea.input-field { resize: none; }
   padding: 1.25rem;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border);
-  position: relative;
-  overflow: hidden;
+  min-width: 0;
 }
-
-.metric-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-}
-
-.metric-card.income::before   { background: var(--sage); }
-.metric-card.expense::before  { background: var(--coral); }
-.metric-card.balance::before  { background: var(--teal); }
-.metric-card.savings::before  { background: var(--yellow-dark); }
 
 .metric-value {
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: clamp(1.2rem, 3.5vw, 1.75rem);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
   line-height: 1.1;
   margin-top: 0.5rem;
+  overflow-wrap: break-word;
 }
 
 .metric-label {
@@ -304,7 +305,7 @@ textarea.input-field { resize: none; }
 .data-table tbody tr {
   transition: background 0.1s;
 }
-.data-table tbody tr:hover { background: rgba(246,245,205,0.5); }
+.data-table tbody tr:hover { background: rgba(121,108,134,0.05); }
 
 /* ─── Bottom Nav ────────────────────────────────────────────────────── */
 .bottom-nav {
@@ -469,6 +470,12 @@ textarea.input-field { resize: none; }
 .animate-fade-in { animation: fadeIn 0.3s ease both; }
 .animate-scale-in { animation: scaleIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both; }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-fade-in, .animate-scale-in { animation: none; }
+  .progress-fill, .sidebar, .btn { transition: none; }
+  html { scroll-behavior: auto; }
+}
+
 /* ─── Amount colors ─────────────────────────────────────────────────── */
 .amount-income  { color: var(--sage-dark); font-weight: 700; }
 .amount-expense { color: var(--coral); font-weight: 700; }
@@ -579,7 +586,8 @@ textarea.input-field { resize: none; }
   .hide-on-lg { display: none !important; }
 }
 
-/* Grid layouts por breakpoint */
+/* Grid layouts por breakpoint — as classes definem TUDO (inclusive o base);
+   nunca combinar com grid-template-columns inline, que venceria a media query. */
 .summary-grid-3 {
   display: grid;
   grid-template-columns: 1fr;
@@ -590,11 +598,29 @@ textarea.input-field { resize: none; }
   .summary-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+.summary-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+
+.xl-cols-2, .xl-cols-chart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.auto-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 1rem;
+}
+
 @media (min-width: 1280px) {
-  .xl-cols-4     { grid-template-columns: repeat(4, 1fr); }
-  .xl-cols-2     { grid-template-columns: repeat(2, 1fr); }
-  .xl-cols-chart { grid-template-columns: 1fr 320px; }
-  .xl-cols-inv   { grid-template-columns: 280px 1fr; }
+  .summary-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .xl-cols-2     { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .xl-cols-chart { grid-template-columns: minmax(0, 1fr) 360px; }
+  .xl-cols-inv   { grid-template-columns: 280px minmax(0, 1fr); }
 }
 
 /* Colunas de tabela responsivas */
@@ -606,7 +632,9 @@ textarea.input-field { resize: none; }
 .show-sm { display: none; }
 @media (min-width: 640px) { .show-sm { display: block; } }
 
-/* Login page layout */
+/* Login page layout — o grid é definido SÓ aqui (sem inline), como manda a
+   regra dos grids responsivos acima. */
+.login-grid { grid-template-columns: 1fr; }
 .login-left { display: none; }
 @media (min-width: 1024px) {
   .login-grid { grid-template-columns: 1fr 480px; }

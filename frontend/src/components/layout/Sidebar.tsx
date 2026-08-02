@@ -1,13 +1,17 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ArrowLeftRight, TrendingUp, Target, LogOut, X } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Wallet, ChartSpline, TrendingUp, Target, Tags, Landmark, LogOut, X } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useNavigate } from 'react-router-dom'
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/transacoes', icon: ArrowLeftRight, label: 'Transações' },
+  { to: '/orcamento', icon: Wallet, label: 'Orçamento' },
+  { to: '/analise', icon: ChartSpline, label: 'Análise' },
   { to: '/investimentos', icon: TrendingUp, label: 'Investimentos' },
   { to: '/objetivos', icon: Target, label: 'Objetivos' },
+  { to: '/categorias', icon: Tags, label: 'Categorias' },
+  { to: '/conexoes', icon: Landmark, label: 'Conexões' },
 ]
 
 interface Props {

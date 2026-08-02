@@ -44,12 +44,15 @@ function buildInitialForm(transaction: Transaction | undefined, today: string): 
     is_recurrent: transaction?.is_recurrent ?? false,
     recurrence_day: transaction?.recurrence_day ?? null,
     notes: transaction?.notes ?? null,
+    is_shared: transaction?.is_shared ?? true,
   }
 }
 
 export function TransactionForm({ transaction, onSuccess }: Props) {
   const qc = useQueryClient()
-  const today = new Date().toISOString().split('T')[0]
+  // Data local (não UTC): toISOString() à noite no Brasil cai no dia seguinte
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   const [form, setForm] = useState<TransactionCreate>(() => buildInitialForm(transaction, today))
 
@@ -180,6 +183,24 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
           style={{ resize: 'none' }}
         />
       </div>
+
+      {/* Shared (só faz sentido para despesa) */}
+      {form.type === 'expense' && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={form.is_shared ?? true}
+            onChange={(e) => field('is_shared', e.target.checked)}
+            style={{ width: 16, height: 16, accentColor: 'var(--teal)', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '0.875rem', color: 'var(--purple-dark)', fontWeight: 500 }}>
+            Despesa do casal
+            <span style={{ fontSize: '0.72rem', color: 'var(--purple-light)', fontWeight: 400, marginLeft: '0.375rem' }}>
+              (entra no acerto do mês)
+            </span>
+          </span>
+        </label>
+      )}
 
       {/* Recurrent */}
       <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>

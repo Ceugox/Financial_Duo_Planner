@@ -31,7 +31,10 @@ app.add_middleware(
 )
 
 # Routers
-from app.routers import auth, transactions, categories, investments, purchase_goals, dashboard  # noqa: E402
+from app.routers import (  # noqa: E402
+    auth, transactions, categories, investments, purchase_goals, dashboard,
+    category_rules, connections, settlement, budgets, insights, review,
+)
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(transactions.router, prefix="/api/v1")
@@ -39,6 +42,12 @@ app.include_router(categories.router, prefix="/api/v1")
 app.include_router(investments.router, prefix="/api/v1")
 app.include_router(purchase_goals.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
+app.include_router(category_rules.router, prefix="/api/v1")
+app.include_router(connections.router, prefix="/api/v1")
+app.include_router(settlement.router, prefix="/api/v1")
+app.include_router(budgets.router, prefix="/api/v1")
+app.include_router(insights.router, prefix="/api/v1")
+app.include_router(review.router, prefix="/api/v1")
 
 
 @app.get("/health")

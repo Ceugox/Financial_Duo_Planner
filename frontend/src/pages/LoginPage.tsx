@@ -35,14 +35,12 @@ export function LoginPage() {
     <div style={{
       minHeight: '100dvh',
       display: 'grid',
-      gridTemplateColumns: '1fr',
-      background: 'var(--cream)',
+      background: 'var(--bg)',
     }}
       className="login-grid"
     >
-      {/* Left — illustration panel */}
+      {/* Left — illustration panel (visibilidade controlada por .login-left no CSS) */}
       <div style={{
-        display: 'none',
         position: 'relative',
         background: 'var(--purple-dark)',
         overflow: 'hidden',

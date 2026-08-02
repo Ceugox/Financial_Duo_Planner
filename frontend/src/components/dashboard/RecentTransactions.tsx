@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, ArrowLeftRight } from 'lucide-react'
 import type { Transaction } from '@/api/transactions'
 import { formatBRL, formatDate } from '@/lib/formatters'
 
@@ -30,7 +30,7 @@ export function RecentTransactions({ transactions }: Props) {
 
       {transactions.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">💸</div>
+          <div className="empty-state-icon"><ArrowLeftRight size={26} color="var(--purple-light)" /></div>
           <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-dark)', marginBottom: '0.25rem' }}>
             Sem transações
           </p>

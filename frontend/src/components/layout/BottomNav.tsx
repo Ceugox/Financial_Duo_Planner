@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ArrowLeftRight, TrendingUp, Target } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Wallet, TrendingUp, Target } from 'lucide-react'
 
 const ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Início' },
   { to: '/transacoes', icon: ArrowLeftRight, label: 'Transações' },
+  { to: '/orcamento', icon: Wallet, label: 'Orçamento' },
   { to: '/investimentos', icon: TrendingUp, label: 'Invest.' },
   { to: '/objetivos', icon: Target, label: 'Objetivos' },
 ]

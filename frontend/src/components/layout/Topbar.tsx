@@ -4,8 +4,12 @@ import { useLocation } from 'react-router-dom'
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/':              { title: 'Dashboard',     subtitle: 'Visão geral das suas finanças' },
   '/transacoes':    { title: 'Transações',    subtitle: 'Receitas e despesas' },
+  '/orcamento':     { title: 'Orçamento',     subtitle: 'Limites por categoria e assinaturas' },
+  '/analise':       { title: 'Análise',       subtitle: 'Histórico, médias e pontos de atenção' },
   '/investimentos': { title: 'Investimentos', subtitle: 'Sua carteira' },
   '/objetivos':     { title: 'Objetivos',     subtitle: 'Metas de compra' },
+  '/categorias':    { title: 'Categorias',    subtitle: 'Organização e regras automáticas' },
+  '/conexoes':      { title: 'Conexões',      subtitle: 'Open Finance e importação de extratos' },
 }
 
 interface Props {
@@ -20,7 +24,7 @@ export function Topbar({ onMenuClick }: Props) {
   return (
     <header style={{
       height: 64,
-      background: 'var(--cream)',
+      background: 'rgba(244,242,247,0.85)',
       borderBottom: '1px solid var(--border)',
       display: 'flex',
       alignItems: 'center',

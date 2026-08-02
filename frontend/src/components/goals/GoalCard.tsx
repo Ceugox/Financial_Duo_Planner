@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, Plus, Check } from 'lucide-react'
+import { Pencil, Trash2, Plus, Check, X, CalendarDays, Timer } from 'lucide-react'
 import type { PurchaseGoal } from '@/api/goals'
 import { goalsApi } from '@/api/goals'
 import { formatBRL, formatDate } from '@/lib/formatters'
@@ -135,13 +135,13 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
             </span>
           )}
           {goal.target_date && (
-            <span style={{ fontSize: '0.72rem', background: 'var(--yellow-light)', color: 'var(--yellow-dark)', padding: '0.25rem 0.625rem', borderRadius: 99, fontWeight: 500 }}>
-              📅 {formatDate(goal.target_date)}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', background: 'var(--yellow-light)', color: 'var(--yellow-dark)', padding: '0.25rem 0.625rem', borderRadius: 99, fontWeight: 500 }}>
+              <CalendarDays size={11} /> {formatDate(goal.target_date)}
             </span>
           )}
           {monthsEstimate && (
-            <span style={{ fontSize: '0.72rem', background: 'var(--teal-light)', color: 'var(--teal-dark)', padding: '0.25rem 0.625rem', borderRadius: 99, fontWeight: 500 }}>
-              ⏱ ~{monthsEstimate} {monthsEstimate === 1 ? 'mês' : 'meses'}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', background: 'var(--teal-light)', color: 'var(--teal-dark)', padding: '0.25rem 0.625rem', borderRadius: 99, fontWeight: 500 }}>
+              <Timer size={11} /> ~{monthsEstimate} {monthsEstimate === 1 ? 'mês' : 'meses'}
             </span>
           )}
         </div>
@@ -168,8 +168,8 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
                 >
                   {depositMutation.isPending ? '...' : 'OK'}
                 </button>
-                <button onClick={() => setShowDeposit(false)} className="btn btn-secondary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>
-                  ✕
+                <button onClick={() => setShowDeposit(false)} aria-label="Cancelar depósito" className="btn btn-secondary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>
+                  <X size={14} />
                 </button>
               </div>
             ) : (

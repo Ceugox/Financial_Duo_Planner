@@ -25,6 +25,7 @@ export function InvestmentForm({ investment, onSuccess }: Props) {
     amount_invested: investment?.amount_invested ?? 0,
     current_value:   investment?.current_value ?? 0,
     quantity:        investment?.quantity ?? null,
+    ticker:          investment?.ticker ?? null,
     purchase_date:   investment?.purchase_date ?? null,
     broker:          investment?.broker ?? null,
     notes:           investment?.notes ?? null,
@@ -111,6 +112,19 @@ export function InvestmentForm({ investment, onSuccess }: Props) {
             className="input-field"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="label">Ticker (cotação automática)</label>
+        <input type="text" maxLength={40}
+          value={form.ticker ?? ''}
+          onChange={(e) => field('ticker', e.target.value.trim() || null)}
+          placeholder={form.asset_type === 'crypto' ? 'id do CoinGecko, ex: bitcoin' : 'ex: PETR4, MXRF11, BOVA11'}
+          className="input-field"
+        />
+        <p style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: '0.25rem' }}>
+          Com ticker + quantidade, o valor atual é atualizado pelo botão "Atualizar cotações".
+        </p>
       </div>
 
       <div>

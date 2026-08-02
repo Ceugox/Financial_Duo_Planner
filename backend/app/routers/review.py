@@ -1,0 +1,203 @@
+"""Fila de revisão do Open Finance (padrão Copilot "Mark as Reviewed").
+
+As transações importadas (Pluggy/OFX) entram como sugestões e só viram
+lançamentos reais quando o casal aceita. A prévia mostra o impacto no mês
+sem tocar nos números oficiais.
+"""
+from datetime import date, datetime, timedelta, timezone
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import extract, func
+from sqlalchemy.orm import Session, joinedload
+from app.dependencies import get_db, get_current_user
+from app.models.staged_transaction import StagedTransaction
+from app.models.transaction import Transaction
+from app.models.user import User
+from app.schemas.category import CategoryResponse
+
+router = APIRouter(prefix="/review", tags=["review"])
+
+
+class ReviewItem(BaseModel):
+    id: int
+    external_id: str
+    source: str
+    type: str
+    amount: float
+    description: str
+    date: date
+    suggested_category: Optional[CategoryResponse]
+    possible_duplicate: bool
+    duplicate_of: Optional[str]   # descrição do lançamento manual parecido
+
+    model_config = {"from_attributes": True}
+
+
+class ReviewSummary(BaseModel):
+    pending_count: int
+    pending_expense: float
+    pending_income: float
+    # Prévia do mês corrente: como ficariam as despesas se tudo fosse aceito
+    month_expense_current: float
+    month_expense_if_accepted: float
+
+
+class ReviewResponse(BaseModel):
+    summary: ReviewSummary
+    items: list[ReviewItem]
+
+
+class AcceptRequest(BaseModel):
+    category_id: Optional[int] = None
+    is_shared: bool = True
+
+
+class AcceptAllResult(BaseModel):
+    accepted: int
+    skipped_duplicates: int
+
+
+def _find_duplicate(db: Session, staged: StagedTransaction) -> Optional[Transaction]:
+    """Lançamento confirmado parecido: mesmo tipo, mesmo valor (±5 centavos),
+    até 3 dias de distância. Evita contar duas vezes o que já foi lançado à mão."""
+    window = timedelta(days=3)
+    return (
+        db.query(Transaction)
+        .filter(
+            Transaction.type == staged.type,
+            Transaction.amount >= float(staged.amount) - 0.05,
+            Transaction.amount <= float(staged.amount) + 0.05,
+            Transaction.date >= staged.date - window,
+            Transaction.date <= staged.date + window,
+        )
+        .first()
+    )
+
+
+def _accept(db: Session, staged: StagedTransaction, category_id: Optional[int], is_shared: bool) -> Transaction:
+    tx = Transaction(
+        type=staged.type,
+        amount=staged.amount,
+        description=staged.description,
+        category_id=category_id if category_id is not None else staged.suggested_category_id,
+        date=staged.date,
+        user_id=staged.user_id,
+        external_id=staged.external_id,
+        source=staged.source,
+        is_shared=is_shared,
+    )
+    db.add(tx)
+    db.flush()
+    staged.status = "accepted"
+    staged.transaction_id = tx.id
+    staged.reviewed_at = datetime.now(timezone.utc)
+    return tx
+
+
+@router.get("", response_model=ReviewResponse)
+def list_pending(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    pending = (
+        db.query(StagedTransaction)
+        .options(joinedload(StagedTransaction.suggested_category))
+        .filter(StagedTransaction.status == "pending")
+        .order_by(StagedTransaction.date.desc(), StagedTransaction.id.desc())
+        .all()
+    )
+
+    items: list[ReviewItem] = []
+    for staged in pending:
+        duplicate = _find_duplicate(db, staged)
+        items.append(ReviewItem(
+            id=staged.id,
+            external_id=staged.external_id,
+            source=staged.source,
+            type=staged.type,
+            amount=float(staged.amount),
+            description=staged.description,
+            date=staged.date,
+            suggested_category=staged.suggested_category,
+            possible_duplicate=duplicate is not None,
+            duplicate_of=duplicate.description if duplicate else None,
+        ))
+
+    today = date.today()
+    month_expense = float(
+        db.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.type == "expense",
+            extract("month", Transaction.date) == today.month,
+            extract("year", Transaction.date) == today.year,
+        )
+        .scalar()
+    )
+    pending_month_expense = sum(
+        i.amount for i in items
+        if i.type == "expense" and i.date.month == today.month and i.date.year == today.year and not i.possible_duplicate
+    )
+
+    return ReviewResponse(
+        summary=ReviewSummary(
+            pending_count=len(items),
+            pending_expense=round(sum(i.amount for i in items if i.type == "expense"), 2),
+            pending_income=round(sum(i.amount for i in items if i.type == "income"), 2),
+            month_expense_current=round(month_expense, 2),
+            month_expense_if_accepted=round(month_expense + pending_month_expense, 2),
+        ),
+        items=items,
+    )
+
+
+@router.post("/{staged_id}/accept", status_code=status.HTTP_201_CREATED)
+def accept_one(
+    staged_id: int,
+    body: AcceptRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    staged = db.query(StagedTransaction).filter(
+        StagedTransaction.id == staged_id, StagedTransaction.status == "pending",
+    ).first()
+    if not staged:
+        raise HTTPException(status_code=404, detail="Sugestão não encontrada ou já revisada")
+    _accept(db, staged, body.category_id, body.is_shared)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/{staged_id}/dismiss", status_code=status.HTTP_200_OK)
+def dismiss_one(
+    staged_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    staged = db.query(StagedTransaction).filter(
+        StagedTransaction.id == staged_id, StagedTransaction.status == "pending",
+    ).first()
+    if not staged:
+        raise HTTPException(status_code=404, detail="Sugestão não encontrada ou já revisada")
+    staged.status = "dismissed"
+    staged.reviewed_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/accept-all", response_model=AcceptAllResult)
+def accept_all(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Aceita todas as pendentes SEM suspeita de duplicata (essas ficam para revisão manual)."""
+    pending = db.query(StagedTransaction).filter(StagedTransaction.status == "pending").all()
+    accepted = skipped = 0
+    for staged in pending:
+        if _find_duplicate(db, staged):
+            skipped += 1
+            continue
+        _accept(db, staged, None, True)
+        accepted += 1
+    db.commit()
+    return AcceptAllResult(accepted=accepted, skipped_duplicates=skipped)

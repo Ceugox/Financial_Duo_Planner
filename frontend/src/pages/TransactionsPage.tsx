@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Search, User } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, User, ArrowLeftRight } from 'lucide-react'
 import { transactionsApi, type Transaction } from '@/api/transactions'
 import { categoriesApi } from '@/api/categories'
 import { authApi } from '@/api/auth'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
+import { SettlementCard } from '@/components/transactions/SettlementCard'
+import { RecurringBanner } from '@/components/transactions/RecurringBanner'
+import { ReviewQueue } from '@/components/transactions/ReviewQueue'
 import { formatBRL, formatDate } from '@/lib/formatters'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -176,13 +179,22 @@ export function TransactionsPage() {
           <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '0.625rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
             <User size={12} /> Comparativo por usuário
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${userStats.length}, 1fr)`, gap: '0.875rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '0.875rem' }}>
             {userStats.map(({ user, income, expense }) => (
               <UserComparisonCard key={user.id} name={user.name} income={income} expense={expense} />
             ))}
           </div>
         </div>
       )}
+
+      {/* Sugestões do Open Finance aguardando revisão */}
+      <ReviewQueue />
+
+      {/* Recorrências ainda não lançadas */}
+      <RecurringBanner month={month} year={year} />
+
+      {/* Acerto do casal */}
+      <SettlementCard month={month} year={year} />
 
       {/* Totals strip */}
       <div className="summary-grid-3">
@@ -226,12 +238,12 @@ export function TransactionsPage() {
         </div>
 
         {isLoading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--purple-light)', fontSize: '0.875rem' }}>
-            Carregando...
+          <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            {[1, 2, 3, 4, 5].map((i) => <div key={i} className="skeleton" style={{ height: 44 }} />)}
           </div>
         ) : (transactions?.length ?? 0) === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">💸</div>
+            <div className="empty-state-icon"><ArrowLeftRight size={26} color="var(--purple-light)" /></div>
             <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-dark)', marginBottom: '0.25rem' }}>
               Nenhuma transação
             </p>

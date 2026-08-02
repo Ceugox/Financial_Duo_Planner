@@ -23,6 +23,11 @@ class Transaction(Base):
     is_recurrent: Mapped[bool] = mapped_column(Boolean, default=False)
     recurrence_day: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Despesa do casal (entra no acerto mensal) vs. pessoal
+    is_shared: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    # Identificador externo p/ dedupe de imports (FITID do OFX, id da Pluggy)
+    external_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, unique=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")  # manual|ofx|pluggy
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

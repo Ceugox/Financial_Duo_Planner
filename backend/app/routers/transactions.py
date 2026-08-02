@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session, joinedload
 from app.dependencies import get_db, get_current_user
@@ -109,6 +110,70 @@ def monthly_totals(
         exp = data[m].get("expense", 0.0)
         result.append(MonthlyTotals(month=m, income=inc, expense=exp, balance=inc - exp))
     return result
+
+
+@router.get("/recurring/pending", response_model=list[TransactionResponse])
+def recurring_pending(
+    month: int = Query(ge=1, le=12),
+    year: int = Query(ge=2000, le=2100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Recorrências declaradas (is_recurrent) ainda sem lançamento no mês.
+
+    Retorna o último lançamento de cada série como molde.
+    """
+    from app.services.recurring import declared_recurring_pending
+    return declared_recurring_pending(db, month, year)
+
+
+class MaterializeRequest(BaseModel):
+    month: int = Field(ge=1, le=12)
+    year: int = Field(ge=2000, le=2100)
+    template_ids: Optional[list[int]] = None  # None = todas as pendentes
+
+
+@router.post("/recurring/materialize", response_model=list[TransactionResponse], status_code=status.HTTP_201_CREATED)
+def recurring_materialize(
+    body: MaterializeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Lança as recorrências pendentes do mês de uma vez (padrão Firefly III)."""
+    from calendar import monthrange
+    from app.services.recurring import declared_recurring_pending
+
+    pending = declared_recurring_pending(db, body.month, body.year)
+    if body.template_ids is not None:
+        wanted = set(body.template_ids)
+        pending = [tx for tx in pending if tx.id in wanted]
+
+    created: list[Transaction] = []
+    last_day = monthrange(body.year, body.month)[1]
+    for template in pending:
+        day = min(template.recurrence_day or template.date.day, last_day)
+        tx = Transaction(
+            type=template.type,
+            amount=template.amount,
+            description=template.description,
+            category_id=template.category_id,
+            payment_method=template.payment_method,
+            date=date(body.year, body.month, day),
+            is_recurrent=True,
+            recurrence_day=template.recurrence_day or template.date.day,
+            notes=template.notes,
+            is_shared=template.is_shared,
+            source="recurring",
+            user_id=template.user_id,
+        )
+        db.add(tx)
+        created.append(tx)
+
+    db.commit()
+    for tx in created:
+        db.refresh(tx)
+        db.refresh(tx, ["category"])
+    return created
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

@@ -15,6 +15,12 @@ class Investment(Base):
     amount_invested: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
     current_value: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
     quantity: Mapped[Optional[float]] = mapped_column(Numeric(15, 6), nullable=True)
+    # Ticker p/ cotação automática: B3 via brapi (PETR4, MXRF11) ou id CoinGecko (bitcoin)
+    ticker: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    # Posição sincronizada do Open Finance: "pluggy:{item_id}:{investment_id}"
+    # (unicidade garantida em código; a coluna nasce por migração, sem constraint)
+    external_id: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")  # manual|pluggy
     purchase_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     broker: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

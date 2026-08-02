@@ -7,9 +7,11 @@ export interface Investment {
   amount_invested: number
   current_value: number
   quantity: number | null
+  ticker: string | null
   purchase_date: string | null
   broker: string | null
   notes: string | null
+  source: string
   user_id: number
   created_at: string
   updated_at: string
@@ -29,13 +31,22 @@ export interface InvestmentCreate {
   amount_invested: number
   current_value: number
   quantity?: number | null
+  ticker?: string | null
   purchase_date?: string | null
   broker?: string | null
   notes?: string | null
 }
 
+export interface QuoteRefreshResult {
+  updated: number
+  skipped_no_ticker: number
+  failed: string[]
+  items: { id: number; name: string; ticker: string; price: number | null; new_value: number | null }[]
+}
+
 export const investmentsApi = {
   list: () => api.get<Investment[]>('/investments').then((r) => r.data),
+  refreshQuotes: () => api.post<QuoteRefreshResult>('/investments/refresh-quotes').then((r) => r.data),
   get: (id: number) => api.get<Investment>(`/investments/${id}`).then((r) => r.data),
   create: (data: InvestmentCreate) => api.post<Investment>('/investments', data).then((r) => r.data),
   update: (id: number, data: Partial<InvestmentCreate>) =>

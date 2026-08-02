@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, PieChart as PieChartIcon, Briefcase, RefreshCw } from 'lucide-react'
 import { investmentsApi, type Investment } from '@/api/investments'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -31,6 +31,21 @@ export function InvestmentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editInv, setEditInv] = useState<Investment | undefined>()
   const [deleteInv, setDeleteInv] = useState<Investment | undefined>()
+  const [quotesFeedback, setQuotesFeedback] = useState('')
+
+  const quotesMutation = useMutation({
+    mutationFn: investmentsApi.refreshQuotes,
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['investments'] })
+      qc.invalidateQueries({ queryKey: ['investments-summary'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      const parts = [`${result.updated} ativo(s) atualizados`]
+      if (result.skipped_no_ticker > 0) parts.push(`${result.skipped_no_ticker} sem ticker/quantidade`)
+      if (result.failed.length > 0) parts.push(`falhou: ${result.failed.join(', ')}`)
+      setQuotesFeedback(parts.join(' · '))
+    },
+    onError: () => setQuotesFeedback('Falha ao buscar cotações. Tente de novo em instantes.'),
+  })
 
   const { data: investments, isLoading } = useQuery({ queryKey: ['investments'], queryFn: investmentsApi.list })
   const { data: summary } = useQuery({ queryKey: ['investments-summary'], queryFn: investmentsApi.summary })
@@ -125,7 +140,7 @@ export function InvestmentsPage() {
               </>
             ) : (
               <div className="empty-state" style={{ padding: '2rem 0' }}>
-                <div className="empty-state-icon">📊</div>
+                <div className="empty-state-icon"><PieChartIcon size={26} color="var(--purple-light)" /></div>
                 <p style={{ fontSize: '0.85rem', color: 'var(--purple-light)' }}>Sem investimentos</p>
               </div>
             )}
@@ -136,16 +151,35 @@ export function InvestmentsPage() {
         <div className="card" style={{ overflow: 'hidden' }}>
           <div className="card-header">
             <h3 className="card-title">Ativos</h3>
-            <button onClick={openNew} className="btn btn-primary" style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}>
-              <Plus size={14} /> Adicionar
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => { setQuotesFeedback(''); quotesMutation.mutate() }}
+                disabled={quotesMutation.isPending}
+                className="btn btn-secondary"
+                style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}
+                title="Busca preços na B3 (brapi) e CoinGecko para ativos com ticker"
+              >
+                <RefreshCw size={14} /> {quotesMutation.isPending ? 'Buscando...' : 'Atualizar cotações'}
+              </button>
+              <button onClick={openNew} className="btn btn-primary" style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}>
+                <Plus size={14} /> Adicionar
+              </button>
+            </div>
           </div>
 
+          {quotesFeedback && (
+            <p style={{ fontSize: '0.78rem', color: 'var(--teal-dark)', background: 'var(--teal-light)', padding: '0.5rem 1.25rem' }}>
+              {quotesFeedback}
+            </p>
+          )}
+
           {isLoading ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--purple-light)', fontSize: '0.875rem' }}>Carregando...</div>
+            <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              {[1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 44 }} />)}
+            </div>
           ) : (investments?.length ?? 0) === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">💼</div>
+              <div className="empty-state-icon"><Briefcase size={26} color="var(--purple-light)" /></div>
               <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-dark)', marginBottom: '0.25rem' }}>Nenhum ativo</p>
               <p style={{ fontSize: '0.78rem' }}>Adicione seus investimentos</p>
             </div>
@@ -169,7 +203,14 @@ export function InvestmentsPage() {
                     return (
                       <tr key={inv.id}>
                         <td>
-                          <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-deep)' }}>{inv.name}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-deep)' }}>{inv.name}</p>
+                            {inv.source === 'pluggy' && (
+                              <span className="badge" style={{ background: 'var(--teal-light)', color: 'var(--teal-dark)' }}>
+                                Open Finance
+                              </span>
+                            )}
+                          </div>
                           {inv.broker && <p style={{ fontSize: '0.7rem', color: 'var(--purple-light)' }}>{inv.broker}</p>}
                         </td>
                         <td className="col-sm" style={{ color: 'var(--purple-light)', fontSize: '0.8rem' }}>

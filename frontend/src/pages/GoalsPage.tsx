@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Plus, Target, ChevronDown, ChevronRight } from 'lucide-react'
 import { goalsApi, type PurchaseGoal } from '@/api/goals'
 import { dashboardApi } from '@/api/dashboard'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
@@ -60,7 +60,7 @@ export function GoalsPage() {
         </div>
       ) : activeGoals.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🎯</div>
+          <div className="empty-state-icon"><Target size={26} color="var(--purple-light)" /></div>
           <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-dark)', marginBottom: '0.25rem' }}>
             Nenhum objetivo cadastrado
           </p>
@@ -90,7 +90,7 @@ export function GoalsPage() {
             className="btn btn-ghost"
             style={{ fontSize: '0.8rem', padding: '0.375rem 0.75rem', color: 'var(--purple-light)' }}
           >
-            {showCompleted ? '▼' : '▶'} Objetivos Concluídos ({completedGoals.length})
+            {showCompleted ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Objetivos Concluídos ({completedGoals.length})
           </button>
           {showCompleted && (
             <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>

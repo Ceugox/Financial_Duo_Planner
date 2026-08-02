@@ -1,11 +1,60 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.models.investment import Investment
 from app.models.user import User
 from app.schemas.investment import InvestmentCreate, InvestmentResponse, InvestmentSummary, InvestmentUpdate
+from app.services.quotes import fetch_price
 
 router = APIRouter(prefix="/investments", tags=["investments"])
+
+
+class QuoteRefreshItem(BaseModel):
+    id: int
+    name: str
+    ticker: str
+    price: float | None
+    new_value: float | None
+
+
+class QuoteRefreshResult(BaseModel):
+    updated: int
+    skipped_no_ticker: int
+    failed: list[str]
+    items: list[QuoteRefreshItem]
+
+
+@router.post("/refresh-quotes", response_model=QuoteRefreshResult)
+def refresh_quotes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Atualiza current_value dos ativos com ticker + quantity.
+
+    B3 (ações/FIIs/ETFs) via brapi.dev; cripto via CoinGecko (ticker = id, ex. "bitcoin").
+    """
+    investments = db.query(Investment).all()
+    items: list[QuoteRefreshItem] = []
+    failed: list[str] = []
+    updated = skipped = 0
+
+    for inv in investments:
+        if not inv.ticker or not inv.quantity:
+            skipped += 1
+            continue
+        price = fetch_price(inv.asset_type, inv.ticker)
+        if price is None:
+            failed.append(f"{inv.name} ({inv.ticker})")
+            items.append(QuoteRefreshItem(id=inv.id, name=inv.name, ticker=inv.ticker, price=None, new_value=None))
+            continue
+        new_value = round(float(inv.quantity) * price, 2)
+        inv.current_value = new_value
+        updated += 1
+        items.append(QuoteRefreshItem(id=inv.id, name=inv.name, ticker=inv.ticker, price=price, new_value=new_value))
+
+    db.commit()
+    return QuoteRefreshResult(updated=updated, skipped_no_ticker=skipped, failed=failed, items=items)
 
 
 @router.get("", response_model=list[InvestmentResponse])

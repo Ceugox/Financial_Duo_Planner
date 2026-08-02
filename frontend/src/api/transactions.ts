@@ -12,6 +12,8 @@ export interface Transaction {
   is_recurrent: boolean
   recurrence_day: number | null
   notes: string | null
+  is_shared: boolean
+  source: string
   user_id: number
   created_at: string
   updated_at: string
@@ -47,6 +49,7 @@ export interface TransactionCreate {
   is_recurrent?: boolean
   recurrence_day?: number | null
   notes?: string | null
+  is_shared?: boolean
 }
 
 export interface MonthlyTotals {
@@ -74,4 +77,14 @@ export const transactionsApi = {
 
   monthlyTotals: (months = 12) =>
     api.get<MonthlyTotals[]>('/transactions/monthly-totals', { params: { months } }).then((r) => r.data),
+
+  recurringPending: (month: number, year: number) =>
+    api
+      .get<Transaction[]>('/transactions/recurring/pending', { params: { month, year } })
+      .then((r) => r.data),
+
+  recurringMaterialize: (month: number, year: number, template_ids?: number[]) =>
+    api
+      .post<Transaction[]>('/transactions/recurring/materialize', { month, year, template_ids })
+      .then((r) => r.data),
 }
