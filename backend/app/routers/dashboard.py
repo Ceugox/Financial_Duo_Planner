@@ -31,6 +31,7 @@ def summary(
     rows = (
         db.query(Transaction.type, func.sum(Transaction.amount).label("total"))
         .filter(
+            Transaction.is_transfer.is_(False),
             extract("month", Transaction.date) == m,
             extract("year", Transaction.date) == y,
         )
@@ -79,6 +80,7 @@ def monthly_chart(
             Transaction.type,
             func.sum(Transaction.amount).label("total"),
         )
+        .filter(Transaction.is_transfer.is_(False))
         .group_by(year_part, month_part, Transaction.type)
         .order_by(year_part, month_part)
         .all()
@@ -135,6 +137,7 @@ def category_breakdown(
         )
         .filter(
             Transaction.type == type,
+            Transaction.is_transfer.is_(False),
             extract("month", Transaction.date) == m,
             extract("year", Transaction.date) == y,
         )

@@ -45,6 +45,7 @@ function buildInitialForm(transaction: Transaction | undefined, today: string): 
     recurrence_day: transaction?.recurrence_day ?? null,
     notes: transaction?.notes ?? null,
     is_shared: transaction?.is_shared ?? true,
+    is_transfer: transaction?.is_transfer ?? false,
   }
 }
 
@@ -201,6 +202,22 @@ export function TransactionForm({ transaction, onSuccess }: Props) {
           </span>
         </label>
       )}
+
+      {/* Transferência entre contas próprias */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={form.is_transfer ?? false}
+          onChange={(e) => field('is_transfer', e.target.checked)}
+          style={{ width: 16, height: 16, accentColor: 'var(--teal)', cursor: 'pointer' }}
+        />
+        <span style={{ fontSize: '0.875rem', color: 'var(--purple-dark)', fontWeight: 500 }}>
+          Transferência entre contas
+          <span style={{ fontSize: '0.72rem', color: 'var(--purple-light)', fontWeight: 400, marginLeft: '0.375rem' }}>
+            (fatura, aporte em reserva — fica fora dos gastos e receitas)
+          </span>
+        </span>
+      </label>
 
       {/* Recurrent */}
       <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>

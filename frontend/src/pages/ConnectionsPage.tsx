@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, RefreshCw, Trash2, Landmark, FileUp, ExternalLink, TrendingUp } from 'lucide-react'
+import { Plus, RefreshCw, Trash2, Landmark, FileUp, ExternalLink, TrendingUp, ArrowLeftRight } from 'lucide-react'
 import axios from 'axios'
 import { connectionsApi, type BankConnection, type SyncResult, type OfxImportResult, type InvestmentSyncResult } from '@/api/connections'
+import { transferRulesApi } from '@/api/transferRules'
 import { authApi } from '@/api/auth'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatDate } from '@/lib/formatters'
@@ -50,6 +51,113 @@ function InvSyncSummary({ result }: { result: InvestmentSyncResult }) {
       <span>· <strong>{result.updated}</strong> atualizadas</span>
       {result.removed_sold > 0 && <span>· <strong>{result.removed_sold}</strong> vendidas removidas</span>}
       {result.removed_manual > 0 && <span>· <strong>{result.removed_manual}</strong> manuais substituídas</span>}
+    </div>
+  )
+}
+
+/** Contas ocultas (99Pay etc.): padrões que o import passa a sugerir como transferência. */
+function TransferRulesCard() {
+  const qc = useQueryClient()
+  const [pattern, setPattern] = useState('')
+  const [appliedMsg, setAppliedMsg] = useState('')
+
+  const { data: rules } = useQuery({ queryKey: ['transfer-rules'], queryFn: transferRulesApi.list })
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['transfer-rules'] })
+    qc.invalidateQueries({ queryKey: ['review'] })
+  }
+
+  const createMutation = useMutation({
+    mutationFn: () => transferRulesApi.create(pattern.trim()),
+    onSuccess: () => { setPattern(''); invalidate() },
+  })
+  const deleteMutation = useMutation({ mutationFn: transferRulesApi.delete, onSuccess: invalidate })
+  const applyMutation = useMutation({
+    mutationFn: transferRulesApi.apply,
+    onSuccess: (result) => {
+      setAppliedMsg(`${result.updated} lançamento(s) já confirmados foram marcados como transferência.`)
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      qc.invalidateQueries({ queryKey: ['insights'] })
+    },
+  })
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ArrowLeftRight size={16} color="var(--purple-dark)" />
+          Contas ocultas e transferências
+        </h3>
+      </div>
+      <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-3)', lineHeight: 1.6 }}>
+          Dinheiro enviado para contas de reserva que vocês não conectaram (ex.: <strong>99Pay</strong> rendendo)
+          não é gasto. Cadastre um trecho da descrição e o import passa a sugerir esses lançamentos como
+          <strong> transferência</strong> — visíveis no extrato, mas fora dos gastos, receitas e do acerto.
+          Pagamento de fatura de cartão e entrada/saída casadas entre contas já são detectados automaticamente.
+        </p>
+
+        {(rules?.length ?? 0) > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {rules!.map((rule) => (
+              <div key={rule.id} style={{
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                padding: '0.625rem 1rem', background: 'var(--bg)', borderRadius: 'var(--radius)',
+              }}>
+                <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: 600, color: 'var(--purple-deep)' }}>
+                  “{rule.pattern}”
+                </span>
+                <button
+                  onClick={() => { setAppliedMsg(''); applyMutation.mutate(rule.id) }}
+                  disabled={applyMutation.isPending}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}
+                  title="Marcar como transferência os lançamentos já confirmados que batem com a regra"
+                >
+                  Aplicar ao histórico
+                </button>
+                <button
+                  onClick={() => deleteMutation.mutate(rule.id)}
+                  className="btn btn-danger btn-icon"
+                  title="Remover regra"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {appliedMsg && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--teal-dark)', padding: '0.625rem 0.875rem', background: 'var(--teal-light)', borderRadius: 'var(--radius-sm)' }}>
+            {appliedMsg}
+          </p>
+        )}
+
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (pattern.trim().length >= 2) createMutation.mutate() }}
+          style={{ display: 'flex', flexWrap: 'wrap', gap: '0.625rem' }}
+        >
+          <input
+            type="text"
+            value={pattern}
+            onChange={(e) => setPattern(e.target.value)}
+            placeholder='Trecho da descrição (ex: "99Pay")'
+            className="input-field"
+            style={{ flex: 1, minWidth: 200 }}
+          />
+          <button type="submit" disabled={pattern.trim().length < 2 || createMutation.isPending} className="btn btn-primary">
+            <Plus size={15} /> Adicionar
+          </button>
+        </form>
+        {createMutation.isError && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--coral)' }}>
+            {errorDetail(createMutation.error, 'Não foi possível criar a regra.')}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
@@ -291,6 +399,9 @@ export function ConnectionsPage() {
           )}
         </div>
       </div>
+
+      {/* Contas ocultas / regras de transferência */}
+      <TransferRulesCard />
 
       <ConfirmDialog
         open={Boolean(deleteConn)}

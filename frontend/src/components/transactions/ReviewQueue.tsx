@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Inbox, AlertTriangle, CheckCheck } from 'lucide-react'
+import { Check, X, Inbox, AlertTriangle, CheckCheck, ArrowLeftRight } from 'lucide-react'
 import { reviewApi, type ReviewItem } from '@/api/review'
 import { categoriesApi } from '@/api/categories'
 import { formatBRL, formatDate } from '@/lib/formatters'
@@ -17,12 +17,16 @@ function ReviewRow({ item, onDone }: { item: ReviewItem; onDone: () => void }) {
     mutationFn: () => reviewApi.accept(item.id, categoryId ? Number(categoryId) : null, shared),
     onSuccess: onDone,
   })
+  const acceptTransfer = useMutation({
+    mutationFn: () => reviewApi.accept(item.id, null, false, true),
+    onSuccess: onDone,
+  })
   const dismiss = useMutation({
     mutationFn: () => reviewApi.dismiss(item.id),
     onSuccess: onDone,
   })
 
-  const busy = accept.isPending || dismiss.isPending
+  const busy = accept.isPending || acceptTransfer.isPending || dismiss.isPending
 
   return (
     <div style={{
@@ -38,10 +42,16 @@ function ReviewRow({ item, onDone }: { item: ReviewItem; onDone: () => void }) {
               <AlertTriangle size={11} /> possível duplicata
             </span>
           )}
+          {item.transfer_suspect && (
+            <span className="badge" style={{ background: 'var(--purple-muted, #ece9f6)', color: 'var(--purple-dark)', gap: '0.25rem' }}>
+              <ArrowLeftRight size={11} /> transferência?
+            </span>
+          )}
         </div>
         <p style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>
           {formatDate(item.date)} · {item.source === 'pluggy' ? 'Open Finance' : 'OFX'}
           {item.possible_duplicate && item.duplicate_of ? ` · parecida com "${item.duplicate_of}"` : ''}
+          {item.transfer_suspect && item.transfer_reason ? ` · ${item.transfer_reason}` : ''}
         </p>
       </div>
 
@@ -80,6 +90,14 @@ function ReviewRow({ item, onDone }: { item: ReviewItem; onDone: () => void }) {
           <Check size={15} />
         </button>
         <button
+          onClick={() => acceptTransfer.mutate()}
+          disabled={busy}
+          className={item.transfer_suspect ? 'btn btn-secondary btn-icon' : 'btn btn-ghost btn-icon'}
+          title="Lançar como transferência entre contas (fora dos gastos e receitas)"
+        >
+          <ArrowLeftRight size={15} />
+        </button>
+        <button
           onClick={() => dismiss.mutate()}
           disabled={busy}
           className="btn btn-ghost btn-icon"
@@ -110,7 +128,7 @@ export function ReviewQueue() {
 
   const { summary, items } = data
   const monthDelta = summary.month_expense_if_accepted - summary.month_expense_current
-  const cleanCount = items.filter((i) => !i.possible_duplicate).length
+  const cleanCount = items.filter((i) => !i.possible_duplicate && !i.transfer_suspect).length
 
   return (
     <div className="card animate-fade-up">
@@ -138,6 +156,9 @@ export function ReviewQueue() {
       <div style={{ padding: '0.25rem 1.5rem 1rem' }}>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', padding: '0.625rem 0', lineHeight: 1.5 }}>
           Sugestões do banco — só entram no dashboard, orçamento e acerto depois que vocês aceitarem.
+          Itens marcados com <ArrowLeftRight size={10} style={{ display: 'inline' }} /> parecem transferência
+          entre contas próprias (fatura de cartão, conta oculta) — aceite-os pelo botão de transferência para
+          ficarem fora dos gastos.
           {monthDelta > 0 && (
             <> Aceitando tudo, as despesas deste mês vão de <strong>{formatBRL(summary.month_expense_current)}</strong> para{' '}
             <strong>{formatBRL(summary.month_expense_if_accepted)}</strong>.</>

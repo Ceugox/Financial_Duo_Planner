@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -25,6 +25,9 @@ class Transaction(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Despesa do casal (entra no acerto mensal) vs. pessoal
     is_shared: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    # Transferência entre contas próprias (pagamento de fatura, aporte em conta
+    # oculta tipo 99Pay): fica visível no extrato mas fora de TODOS os agregados
+    is_transfer: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("FALSE"))
     # Identificador externo p/ dedupe de imports (FITID do OFX, id da Pluggy)
     external_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, unique=True)
     source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")  # manual|ofx|pluggy

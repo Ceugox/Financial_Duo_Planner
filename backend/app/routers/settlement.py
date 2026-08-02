@@ -73,7 +73,12 @@ def _compute_status(db: Session, month: int, year: int) -> SettlementStatus:
     for user in users:
         income = (
             db.query(func.coalesce(func.sum(Transaction.amount), 0))
-            .filter(Transaction.user_id == user.id, Transaction.type == "income", *month_filter)
+            .filter(
+                Transaction.user_id == user.id,
+                Transaction.type == "income",
+                Transaction.is_transfer.is_(False),
+                *month_filter,
+            )
             .scalar()
         )
         paid = (
@@ -81,6 +86,7 @@ def _compute_status(db: Session, month: int, year: int) -> SettlementStatus:
             .filter(
                 Transaction.user_id == user.id,
                 Transaction.type == "expense",
+                Transaction.is_transfer.is_(False),
                 Transaction.is_shared.is_(True),
                 *month_filter,
             )

@@ -120,6 +120,7 @@ def budget_status(
         db.query(Transaction.category_id, func.sum(Transaction.amount).label("total"))
         .filter(
             Transaction.type == "expense",
+            Transaction.is_transfer.is_(False),
             extract("month", Transaction.date) == m,
             extract("year", Transaction.date) == y,
         )

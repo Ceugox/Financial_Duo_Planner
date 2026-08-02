@@ -12,6 +12,8 @@ export interface ReviewItem {
   suggested_category: Category | null
   possible_duplicate: boolean
   duplicate_of: string | null
+  transfer_suspect: boolean
+  transfer_reason: string | null
 }
 
 export interface ReviewSummary {
@@ -30,13 +32,13 @@ export interface ReviewResponse {
 export const reviewApi = {
   list: () => api.get<ReviewResponse>('/review').then((r) => r.data),
 
-  accept: (id: number, category_id: number | null, is_shared: boolean) =>
-    api.post(`/review/${id}/accept`, { category_id, is_shared }).then((r) => r.data),
+  accept: (id: number, category_id: number | null, is_shared: boolean, as_transfer = false) =>
+    api.post(`/review/${id}/accept`, { category_id, is_shared, as_transfer }).then((r) => r.data),
 
   dismiss: (id: number) => api.post(`/review/${id}/dismiss`).then((r) => r.data),
 
   acceptAll: () =>
     api
-      .post<{ accepted: number; skipped_duplicates: number }>('/review/accept-all')
+      .post<{ accepted: number; skipped_duplicates: number; skipped_transfers: number }>('/review/accept-all')
       .then((r) => r.data),
 }

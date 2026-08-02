@@ -15,6 +15,7 @@ from app.models.staged_transaction import StagedTransaction
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.category import CategoryResponse
+from app.services.transfers import classify_description, detect_pairs, load_transfer_rules
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -30,6 +31,8 @@ class ReviewItem(BaseModel):
     suggested_category: Optional[CategoryResponse]
     possible_duplicate: bool
     duplicate_of: Optional[str]   # descrição do lançamento manual parecido
+    transfer_suspect: bool
+    transfer_reason: Optional[str]  # ex.: pagamento de fatura, conta oculta, par casado
 
     model_config = {"from_attributes": True}
 
@@ -51,11 +54,13 @@ class ReviewResponse(BaseModel):
 class AcceptRequest(BaseModel):
     category_id: Optional[int] = None
     is_shared: bool = True
+    as_transfer: bool = False   # lança fora dos números (transferência interna)
 
 
 class AcceptAllResult(BaseModel):
     accepted: int
     skipped_duplicates: int
+    skipped_transfers: int
 
 
 def _find_duplicate(db: Session, staged: StagedTransaction) -> Optional[Transaction]:
@@ -66,6 +71,7 @@ def _find_duplicate(db: Session, staged: StagedTransaction) -> Optional[Transact
         db.query(Transaction)
         .filter(
             Transaction.type == staged.type,
+            Transaction.is_transfer.is_(False),
             Transaction.amount >= float(staged.amount) - 0.05,
             Transaction.amount <= float(staged.amount) + 0.05,
             Transaction.date >= staged.date - window,
@@ -75,7 +81,28 @@ def _find_duplicate(db: Session, staged: StagedTransaction) -> Optional[Transact
     )
 
 
-def _accept(db: Session, staged: StagedTransaction, category_id: Optional[int], is_shared: bool) -> Transaction:
+def _transfer_reasons(db: Session, pending: list[StagedTransaction]) -> dict[int, str]:
+    """Motivo de suspeita de transferência por staged.id (descritor > par casado)."""
+    rules = load_transfer_rules(db)
+    reasons: dict[int, str] = {}
+    unmatched: list[StagedTransaction] = []
+    for staged in pending:
+        reason = classify_description(staged.description, rules)
+        if reason:
+            reasons[staged.id] = reason
+        else:
+            unmatched.append(staged)
+    reasons.update(detect_pairs(unmatched))
+    return reasons
+
+
+def _accept(
+    db: Session,
+    staged: StagedTransaction,
+    category_id: Optional[int],
+    is_shared: bool,
+    as_transfer: bool = False,
+) -> Transaction:
     tx = Transaction(
         type=staged.type,
         amount=staged.amount,
@@ -85,7 +112,9 @@ def _accept(db: Session, staged: StagedTransaction, category_id: Optional[int], 
         user_id=staged.user_id,
         external_id=staged.external_id,
         source=staged.source,
-        is_shared=is_shared,
+        # Transferência interna: fora dos agregados e do acerto do casal
+        is_shared=False if as_transfer else is_shared,
+        is_transfer=as_transfer,
     )
     db.add(tx)
     db.flush()
@@ -108,9 +137,12 @@ def list_pending(
         .all()
     )
 
+    transfer_reasons = _transfer_reasons(db, pending)
+
     items: list[ReviewItem] = []
     for staged in pending:
         duplicate = _find_duplicate(db, staged)
+        reason = transfer_reasons.get(staged.id)
         items.append(ReviewItem(
             id=staged.id,
             external_id=staged.external_id,
@@ -122,6 +154,8 @@ def list_pending(
             suggested_category=staged.suggested_category,
             possible_duplicate=duplicate is not None,
             duplicate_of=duplicate.description if duplicate else None,
+            transfer_suspect=reason is not None,
+            transfer_reason=reason,
         ))
 
     today = date.today()
@@ -129,6 +163,7 @@ def list_pending(
         db.query(func.coalesce(func.sum(Transaction.amount), 0))
         .filter(
             Transaction.type == "expense",
+            Transaction.is_transfer.is_(False),
             extract("month", Transaction.date) == today.month,
             extract("year", Transaction.date) == today.year,
         )
@@ -136,7 +171,8 @@ def list_pending(
     )
     pending_month_expense = sum(
         i.amount for i in items
-        if i.type == "expense" and i.date.month == today.month and i.date.year == today.year and not i.possible_duplicate
+        if i.type == "expense" and i.date.month == today.month and i.date.year == today.year
+        and not i.possible_duplicate and not i.transfer_suspect
     )
 
     return ReviewResponse(
@@ -163,7 +199,7 @@ def accept_one(
     ).first()
     if not staged:
         raise HTTPException(status_code=404, detail="Sugestão não encontrada ou já revisada")
-    _accept(db, staged, body.category_id, body.is_shared)
+    _accept(db, staged, body.category_id, body.is_shared, as_transfer=body.as_transfer)
     db.commit()
     return {"ok": True}
 
@@ -190,14 +226,19 @@ def accept_all(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Aceita todas as pendentes SEM suspeita de duplicata (essas ficam para revisão manual)."""
+    """Aceita todas as pendentes SEM suspeita de duplicata nem de transferência
+    (essas ficam para revisão manual)."""
     pending = db.query(StagedTransaction).filter(StagedTransaction.status == "pending").all()
-    accepted = skipped = 0
+    transfer_reasons = _transfer_reasons(db, pending)
+    accepted = skipped = skipped_transfers = 0
     for staged in pending:
+        if staged.id in transfer_reasons:
+            skipped_transfers += 1
+            continue
         if _find_duplicate(db, staged):
             skipped += 1
             continue
         _accept(db, staged, None, True)
         accepted += 1
     db.commit()
-    return AcceptAllResult(accepted=accepted, skipped_duplicates=skipped)
+    return AcceptAllResult(accepted=accepted, skipped_duplicates=skipped, skipped_transfers=skipped_transfers)

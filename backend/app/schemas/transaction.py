@@ -15,6 +15,7 @@ class TransactionCreate(BaseModel):
     recurrence_day: Optional[int] = None
     notes: Optional[str] = None
     is_shared: bool = True
+    is_transfer: bool = False
 
     @field_validator("category_id")
     @classmethod
@@ -42,6 +43,7 @@ class TransactionUpdate(BaseModel):
     recurrence_day: Optional[int] = None
     notes: Optional[str] = None
     is_shared: Optional[bool] = None
+    is_transfer: Optional[bool] = None
 
     @field_validator("category_id")
     @classmethod
@@ -71,6 +73,7 @@ class TransactionResponse(BaseModel):
     recurrence_day: Optional[int]
     notes: Optional[str]
     is_shared: bool
+    is_transfer: bool
     source: str
     user_id: int
     created_at: datetime

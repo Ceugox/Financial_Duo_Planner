@@ -30,6 +30,7 @@ def list_transactions(
     year: Optional[int] = Query(None),
     category_id: Optional[int] = Query(None),
     type: Optional[Literal["income", "expense"]] = Query(None),
+    is_transfer: Optional[bool] = Query(None),
     search: Optional[str] = Query(None),
     user_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
@@ -49,6 +50,8 @@ def list_transactions(
         q = q.filter(Transaction.category_id == category_id)
     if type:
         q = q.filter(Transaction.type == type)
+    if is_transfer is not None:
+        q = q.filter(Transaction.is_transfer.is_(is_transfer))
     if search:
         q = q.filter(Transaction.description.ilike(f"%{search}%"))
     if user_id:
@@ -89,6 +92,7 @@ def monthly_totals(
             Transaction.type,
             func.sum(Transaction.amount).label("total"),
         )
+        .filter(Transaction.is_transfer.is_(False))
         .group_by(year_part, month_part, Transaction.type)
         .order_by(year_part, month_part)
         .all()

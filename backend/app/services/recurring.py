@@ -61,6 +61,7 @@ def detect_series(db: Session, today: date | None = None) -> list[RecurringSerie
     today = today or date.today()
     txs = (
         db.query(Transaction)
+        .filter(Transaction.is_transfer.is_(False))
         .order_by(Transaction.date.asc(), Transaction.id.asc())
         .all()
     )
@@ -145,7 +146,7 @@ def declared_recurring_pending(db: Session, month: int, year: int) -> list[Trans
     """
     declared = (
         db.query(Transaction)
-        .filter(Transaction.is_recurrent.is_(True))
+        .filter(Transaction.is_recurrent.is_(True), Transaction.is_transfer.is_(False))
         .order_by(Transaction.date.asc(), Transaction.id.asc())
         .all()
     )

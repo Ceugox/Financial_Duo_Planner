@@ -105,15 +105,17 @@ export function TransactionsPage() {
     },
   })
 
-  const totalIncome  = transactions?.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0) ?? 0
-  const totalExpense = transactions?.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0) ?? 0
+  // Transferências entre contas próprias ficam visíveis na tabela, mas fora dos totais
+  const countable    = transactions?.filter((t) => !t.is_transfer) ?? []
+  const totalIncome  = countable.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalExpense = countable.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balance      = totalIncome - totalExpense
 
   // Per-user stats computed from loaded transactions (used only in Todos mode)
   const showComparison = !userFilter && (users?.length ?? 0) > 1
   const userStats = showComparison
     ? users!.map((u) => {
-        const txs = transactions ?? []
+        const txs = countable
         const uIncome  = txs.filter((t) => t.user_id === u.id && t.type === 'income').reduce((s, t) => s + t.amount, 0)
         const uExpense = txs.filter((t) => t.user_id === u.id && t.type === 'expense').reduce((s, t) => s + t.amount, 0)
         return { user: u, income: uIncome, expense: uExpense }
@@ -284,6 +286,11 @@ export function TransactionsPage() {
                               Recorrente{tx.recurrence_day ? ` dia ${tx.recurrence_day}` : ''}
                             </span>
                           )}
+                          {tx.is_transfer && (
+                            <span style={{ fontSize: '0.62rem', background: 'var(--purple-muted, #ece9f6)', color: 'var(--purple-dark)', padding: '0.1rem 0.375rem', borderRadius: 99, fontWeight: 600 }}>
+                              ⇄ Transferência
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -311,7 +318,10 @@ export function TransactionsPage() {
                       </td>
                     )}
                     <td style={{ textAlign: 'right' }}>
-                      <span className={tx.type === 'income' ? 'amount-income' : 'amount-expense'} style={{ fontSize: '0.875rem' }}>
+                      <span
+                        className={tx.is_transfer ? undefined : tx.type === 'income' ? 'amount-income' : 'amount-expense'}
+                        style={{ fontSize: '0.875rem', ...(tx.is_transfer ? { color: 'var(--text-3)', fontWeight: 500 } : {}) }}
+                      >
                         {tx.type === 'income' ? '+' : '-'}{formatBRL(tx.amount)}
                       </span>
                     </td>

@@ -13,6 +13,7 @@ export interface Transaction {
   recurrence_day: number | null
   notes: string | null
   is_shared: boolean
+  is_transfer: boolean
   source: string
   user_id: number
   created_at: string
@@ -50,6 +51,7 @@ export interface TransactionCreate {
   recurrence_day?: number | null
   notes?: string | null
   is_shared?: boolean
+  is_transfer?: boolean
 }
 
 export interface MonthlyTotals {

@@ -123,6 +123,7 @@ def _month_expenses_by_category(db: Session, month: int, year: int) -> dict[Opti
         db.query(Transaction.category_id, func.sum(Transaction.amount).label("total"))
         .filter(
             Transaction.type == "expense",
+            Transaction.is_transfer.is_(False),
             extract("month", Transaction.date) == month,
             extract("year", Transaction.date) == year,
         )
@@ -137,6 +138,7 @@ def _month_total(db: Session, month: int, year: int, tx_type: str) -> float:
         db.query(func.coalesce(func.sum(Transaction.amount), 0))
         .filter(
             Transaction.type == tx_type,
+            Transaction.is_transfer.is_(False),
             extract("month", Transaction.date) == month,
             extract("year", Transaction.date) == year,
         )
@@ -261,6 +263,7 @@ def insights_feed(
         db.query(Transaction)
         .filter(
             Transaction.type == "expense",
+            Transaction.is_transfer.is_(False),
             extract("month", Transaction.date) == m,
             extract("year", Transaction.date) == y,
         )
@@ -287,7 +290,12 @@ def insights_feed(
         cutoff = date(y, m, 1)
         for tx in (
             db.query(Transaction)
-            .filter(Transaction.type == "expense", Transaction.date < cutoff, Transaction.date >= cutoff - timedelta(days=365))
+            .filter(
+                Transaction.type == "expense",
+                Transaction.is_transfer.is_(False),
+                Transaction.date < cutoff,
+                Transaction.date >= cutoff - timedelta(days=365),
+            )
             .all()
         ):
             hist_by_cat.setdefault(tx.category_id, []).append(float(tx.amount))
@@ -334,6 +342,7 @@ def insights_feed(
             db.query(func.coalesce(func.sum(Transaction.amount), 0))
             .filter(
                 Transaction.type == "expense",
+                Transaction.is_transfer.is_(False),
                 Transaction.is_shared.is_(True),
                 extract("month", Transaction.date) == pm,
                 extract("year", Transaction.date) == py,
@@ -369,7 +378,11 @@ def forecast(
 
     month_txs = (
         db.query(Transaction)
-        .filter(extract("month", Transaction.date) == m, extract("year", Transaction.date) == y)
+        .filter(
+            Transaction.is_transfer.is_(False),
+            extract("month", Transaction.date) == m,
+            extract("year", Transaction.date) == y,
+        )
         .all()
     )
     spent = sum(float(t.amount) for t in month_txs if t.type == "expense")
@@ -396,7 +409,12 @@ def forecast(
     variable_total = 0.0
     for tx in (
         db.query(Transaction)
-        .filter(Transaction.type == "expense", Transaction.date >= window_start, Transaction.date <= today)
+        .filter(
+            Transaction.type == "expense",
+            Transaction.is_transfer.is_(False),
+            Transaction.date >= window_start,
+            Transaction.date <= today,
+        )
         .all()
     ):
         if (normalize_description(tx.description), "expense") not in recurring:
@@ -469,7 +487,11 @@ def spending_analysis(
     window_start = date(first_year, first_month, 1)
     txs = (
         db.query(Transaction)
-        .filter(Transaction.date >= window_start, Transaction.date <= today)
+        .filter(
+            Transaction.is_transfer.is_(False),
+            Transaction.date >= window_start,
+            Transaction.date <= today,
+        )
         .all()
     )
 

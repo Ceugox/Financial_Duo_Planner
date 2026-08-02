@@ -34,6 +34,7 @@ def create_tables() -> None:
     from app.models import (  # noqa: F401
         user, category, transaction, investment, purchase_goal,
         category_rule, bank_connection, settlement, budget, staged_transaction,
+        transfer_rule,
     )
     Base.metadata.create_all(bind=engine)
     _run_column_migrations()
@@ -47,6 +48,7 @@ _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("is_shared", "BOOLEAN NOT NULL DEFAULT TRUE"),
         ("external_id", "VARCHAR(120)"),
         ("source", "VARCHAR(20) NOT NULL DEFAULT 'manual'"),
+        ("is_transfer", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ],
     "investments": [
         ("ticker", "VARCHAR(40)"),
