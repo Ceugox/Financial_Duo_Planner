@@ -65,7 +65,12 @@ class AcceptAllResult(BaseModel):
 
 def _find_duplicate(db: Session, staged: StagedTransaction) -> Optional[Transaction]:
     """Lançamento confirmado parecido: mesmo tipo, mesmo valor (±5 centavos),
-    até 3 dias de distância. Evita contar duas vezes o que já foi lançado à mão."""
+    até 3 dias de distância. Evita contar duas vezes o que já foi lançado à mão.
+
+    Valores < R$ 5 nunca são suspeitos: a tolerância de ±5 centavos vira ruído
+    em migalhas (dividendos/taxas de B3 de centavos) e o custo de errar é nulo."""
+    if float(staged.amount) < 5:
+        return None
     window = timedelta(days=3)
     return (
         db.query(Transaction)
