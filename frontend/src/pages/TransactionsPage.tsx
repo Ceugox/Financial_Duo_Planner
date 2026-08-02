@@ -7,7 +7,7 @@ import { authApi } from '@/api/auth'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
-import { SettlementCard } from '@/components/transactions/SettlementCard'
+import { PotCard } from '@/components/transactions/PotCard'
 import { RecurringBanner } from '@/components/transactions/RecurringBanner'
 import { formatBRL, formatDate } from '@/lib/formatters'
 
@@ -191,8 +191,8 @@ export function TransactionsPage() {
       {/* Recorrências ainda não lançadas */}
       <RecurringBanner month={month} year={year} />
 
-      {/* Acerto do casal */}
-      <SettlementCard month={month} year={year} />
+      {/* Caixa único do casal */}
+      <PotCard month={month} year={year} />
 
       {/* Totals strip */}
       <div className="summary-grid-3">

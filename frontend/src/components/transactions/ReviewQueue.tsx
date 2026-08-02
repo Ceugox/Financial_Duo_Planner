@@ -9,12 +9,11 @@ const INVALIDATE_KEYS = ['transactions', 'dashboard', 'insights', 'budgets', 're
 
 function ReviewRow({ item, onDone }: { item: ReviewItem; onDone: () => void }) {
   const [categoryId, setCategoryId] = useState<string>(item.suggested_category ? String(item.suggested_category.id) : '')
-  const [shared, setShared] = useState(false)
 
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: categoriesApi.list })
 
   const accept = useMutation({
-    mutationFn: () => reviewApi.accept(item.id, categoryId ? Number(categoryId) : null, shared),
+    mutationFn: () => reviewApi.accept(item.id, categoryId ? Number(categoryId) : null, false),
     onSuccess: onDone,
   })
   const acceptTransfer = useMutation({
@@ -74,11 +73,6 @@ function ReviewRow({ item, onDone }: { item: ReviewItem; onDone: () => void }) {
           <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
         ))}
       </select>
-
-      <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-        <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-        do casal
-      </label>
 
       <div style={{ display: 'flex', gap: '0.375rem' }}>
         <button

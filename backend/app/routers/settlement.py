@@ -141,6 +141,93 @@ def _compute_status(db: Session, month: int, year: int) -> SettlementStatus:
     )
 
 
+class PotStatus(BaseModel):
+    """Caixa único do casal (modelo real do Marcell e da Rebeca).
+
+    Cada um recebe na sua conta; quem cuida do dia a dia (keeper) segura uma
+    reserva (~R$500) e transfere o excedente para quem guarda/investe (saver).
+    """
+    month: int
+    year: int
+    couple_income: float
+    couple_expense: float
+    leftover: float               # sobra do casal no mês (para guardar/investir)
+    saver_name: str
+    keeper_name: str
+    keeper_income: float
+    keeper_expense: float
+    reserve: float
+    already_transferred: float    # Pix do keeper já recebidos pelo saver no mês
+    to_transfer: float            # excedente que ainda falta transferir
+
+
+@router.get("/pot", response_model=PotStatus)
+def pot_status(
+    month: int = Query(ge=1, le=12),
+    year: int = Query(ge=2000, le=2100),
+    reserve: float = Query(500.0, ge=0),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    users = db.query(User).filter(User.is_active.is_(True)).order_by(User.id).all()
+    # Convenção do casal: o primeiro usuário (Marcell) guarda/investe; o
+    # segundo (Rebeca) fica com a reserva do dia a dia.
+    saver = users[0] if users else None
+    keeper = users[1] if len(users) > 1 else None
+
+    month_filter = (
+        Transaction.is_transfer.is_(False),
+        extract("month", Transaction.date) == month,
+        extract("year", Transaction.date) == year,
+    )
+
+    def _total(user_id: int, tx_type: str) -> float:
+        return float(
+            db.query(func.coalesce(func.sum(Transaction.amount), 0))
+            .filter(Transaction.user_id == user_id, Transaction.type == tx_type, *month_filter)
+            .scalar()
+        )
+
+    couple_income = sum(_total(u.id, "income") for u in users)
+    couple_expense = sum(_total(u.id, "expense") for u in users)
+
+    keeper_income = _total(keeper.id, "income") if keeper else 0.0
+    keeper_expense = _total(keeper.id, "expense") if keeper else 0.0
+
+    # Pix do keeper chegam nas contas conectadas do saver como transferência
+    already = 0.0
+    if keeper:
+        first_name = keeper.name.split()[0]
+        already = float(
+            db.query(func.coalesce(func.sum(Transaction.amount), 0))
+            .filter(
+                Transaction.type == "income",
+                Transaction.is_transfer.is_(True),
+                Transaction.description.ilike(f"%{first_name}%"),
+                extract("month", Transaction.date) == month,
+                extract("year", Transaction.date) == year,
+            )
+            .scalar()
+        )
+
+    to_transfer = max(0.0, keeper_income - keeper_expense - reserve - already)
+
+    return PotStatus(
+        month=month,
+        year=year,
+        couple_income=round(couple_income, 2),
+        couple_expense=round(couple_expense, 2),
+        leftover=round(couple_income - couple_expense, 2),
+        saver_name=saver.name.split()[0] if saver else "—",
+        keeper_name=keeper.name.split()[0] if keeper else "—",
+        keeper_income=round(keeper_income, 2),
+        keeper_expense=round(keeper_expense, 2),
+        reserve=reserve,
+        already_transferred=round(already, 2),
+        to_transfer=round(to_transfer, 2),
+    )
+
+
 @router.get("", response_model=SettlementStatus)
 def settlement_status(
     month: int = Query(ge=1, le=12),

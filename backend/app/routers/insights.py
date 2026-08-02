@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.models.budget import Budget
 from app.models.category import Category
-from app.models.settlement import Settlement
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.services.recurring import detect_series, normalize_description
@@ -333,29 +332,8 @@ def insights_feed(
                 amount=round(income_now - expense_now, 2),
             ))
 
-    # 8. Casal: mês anterior com acerto pendente
-    prev_settled = (
-        db.query(Settlement).filter(Settlement.month == pm, Settlement.year == py).first()
-    )
-    if not prev_settled:
-        prev_shared = (
-            db.query(func.coalesce(func.sum(Transaction.amount), 0))
-            .filter(
-                Transaction.type == "expense",
-                Transaction.is_transfer.is_(False),
-                Transaction.is_shared.is_(True),
-                extract("month", Transaction.date) == pm,
-                extract("year", Transaction.date) == py,
-            )
-            .scalar()
-        )
-        if float(prev_shared) > 0:
-            insights.append(Insight(
-                kind="couple", severity="info",
-                title="Acerto do mês passado pendente",
-                detail=f"O casal teve {_brl(float(prev_shared))} em despesas compartilhadas em {pm:02d}/{py} e o acerto ainda não foi registrado.",
-                amount=float(prev_shared),
-            ))
+    # (o antigo insight de "acerto pendente" saiu: o casal opera caixa único,
+    # sem acerto — ver /settlement/pot)
 
     severity_order = {"critical": 0, "warning": 1, "info": 2, "positive": 3}
     insights.sort(key=lambda i: (severity_order.get(i.severity, 9), -(abs(i.amount or 0))))
