@@ -34,7 +34,7 @@ def create_tables() -> None:
     from app.models import (  # noqa: F401
         user, category, transaction, investment, purchase_goal,
         category_rule, bank_connection, settlement, budget, staged_transaction,
-        transfer_rule,
+        transfer_rule, plan_event, plan_settings,
     )
     Base.metadata.create_all(bind=engine)
     _run_column_migrations()
@@ -56,7 +56,22 @@ _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("account_name", "VARCHAR(120)"),
         ("account_type", "VARCHAR(20)"),
     ],
+    "purchase_goals": [
+        ("monthly_contribution", "NUMERIC(15, 2) NOT NULL DEFAULT 0"),
+        ("saved_amount_source", "VARCHAR(20) NOT NULL DEFAULT 'manual'"),
+    ],
+    "bank_connections": [
+        ("status", "VARCHAR(30) NOT NULL DEFAULT 'connected'"),
+        ("last_sync_attempt_at", "TIMESTAMP"),
+        ("last_sync_error", "TEXT"),
+        ("coverage_json", "TEXT"),
+    ],
+    "plan_events": [
+        ("end_date", "DATE"),
+    ],
     "investments": [
+        ("is_active", "BOOLEAN NOT NULL DEFAULT TRUE"),
+        ("inactive_at", "TIMESTAMP"),
         ("ticker", "VARCHAR(40)"),
         ("external_id", "VARCHAR(160)"),
         ("source", "VARCHAR(20) NOT NULL DEFAULT 'manual'"),

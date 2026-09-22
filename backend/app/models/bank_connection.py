@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -20,6 +20,10 @@ class BankConnection(Base):
     nickname: Mapped[str] = mapped_column(String(100), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_sync_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_sync_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="connected", server_default="connected")
+    coverage_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user: Mapped["User"] = relationship()

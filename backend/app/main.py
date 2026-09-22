@@ -34,7 +34,7 @@ app.add_middleware(
 from app.routers import (  # noqa: E402
     auth, transactions, categories, investments, purchase_goals, dashboard,
     category_rules, connections, settlement, budgets, insights, review,
-    transfer_rules,
+    transfer_rules, plan,
 )
 
 app.include_router(auth.router, prefix="/api/v1")
@@ -50,6 +50,7 @@ app.include_router(budgets.router, prefix="/api/v1")
 app.include_router(insights.router, prefix="/api/v1")
 app.include_router(review.router, prefix="/api/v1")
 app.include_router(transfer_rules.router, prefix="/api/v1")
+app.include_router(plan.router, prefix="/api/v1")
 
 
 @app.get("/health")

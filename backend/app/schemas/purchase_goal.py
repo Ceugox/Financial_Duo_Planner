@@ -9,6 +9,8 @@ class PurchaseGoalCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     target_amount: float = Field(gt=0)
     saved_amount: float = Field(default=0, ge=0)
+    monthly_contribution: float = Field(default=0, ge=0)
+    saved_amount_source: Literal["manual", "linked"] = "manual"
     priority: Priority = "media"
     target_date: Optional[date] = None
     category: Optional[str] = Field(default=None, max_length=100)
@@ -26,6 +28,8 @@ class PurchaseGoalUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     target_amount: Optional[float] = Field(default=None, gt=0)
     saved_amount: Optional[float] = Field(default=None, ge=0)
+    monthly_contribution: Optional[float] = Field(default=None, ge=0)
+    saved_amount_source: Optional[Literal["manual", "linked"]] = None
     priority: Optional[Priority] = None
     target_date: Optional[date] = None
     category: Optional[str] = Field(default=None, max_length=100)
@@ -43,6 +47,8 @@ class PurchaseGoalResponse(BaseModel):
     name: str
     target_amount: float
     saved_amount: float
+    monthly_contribution: float
+    saved_amount_source: Literal["manual", "linked"]
     priority: Priority
     target_date: Optional[date]
     category: Optional[str]

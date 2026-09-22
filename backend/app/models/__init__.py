@@ -8,8 +8,10 @@ from app.models.bank_connection import BankConnection
 from app.models.settlement import Settlement
 from app.models.budget import Budget
 from app.models.staged_transaction import StagedTransaction
+from app.models.plan_settings import PlanSettings
+from app.models.plan_event import PlanEvent
 
 __all__ = [
     "User", "Category", "Transaction", "Investment", "PurchaseGoal",
-    "CategoryRule", "BankConnection", "Settlement", "Budget", "StagedTransaction",
+    "CategoryRule", "BankConnection", "Settlement", "Budget", "StagedTransaction", "PlanSettings", "PlanEvent",
 ]

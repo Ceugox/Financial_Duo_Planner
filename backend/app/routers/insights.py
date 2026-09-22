@@ -172,7 +172,7 @@ def insights_feed(
     # 1. Variação do gasto total vs mês anterior (>=15% e >=R$100)
     expense_now = _month_total(db, m, y, "expense")
     expense_prev = _month_total(db, pm, py, "expense")
-    if expense_prev > 0 and expense_now > 0:
+    if (y, m) < (today.year, today.month) and expense_prev > 0 and expense_now > 0:
         delta = expense_now - expense_prev
         pct = delta / expense_prev * 100
         if abs(pct) >= 15 and abs(delta) >= 100:
@@ -195,7 +195,7 @@ def insights_feed(
     cats = {c.id: c for c in db.query(Category).all()}
 
     cat_changes = []
-    for cat_id, total in current_by_cat.items():
+    for cat_id, total in (current_by_cat.items() if (y, m) < (today.year, today.month) else []):
         prior = [h.get(cat_id, 0.0) for h in history]
         avg = mean(prior) if any(p > 0 for p in prior) else 0.0
         if avg <= 0:
@@ -529,7 +529,7 @@ def spending_analysis(
     # Pontos de atenção
     concerns: list[ConcernItem] = []
     for t in trends:
-        if t.avg_monthly > 0 and t.current_month > t.avg_monthly * 1.25 and (t.current_month - t.avg_monthly) >= 100:
+        if current_label != today.strftime("%Y-%m") and t.avg_monthly > 0 and t.current_month > t.avg_monthly * 1.25 and (t.current_month - t.avg_monthly) >= 100:
             concerns.append(ConcernItem(
                 kind="category_above_avg",
                 title=f"{t.category_name} {t.delta_pct_vs_avg:+.0f}% vs média",

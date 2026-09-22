@@ -34,7 +34,7 @@ def refresh_quotes(
 
     B3 (ações/FIIs/ETFs) via brapi.dev; cripto via CoinGecko (ticker = id, ex. "bitcoin").
     """
-    investments = db.query(Investment).all()
+    investments = db.query(Investment).filter(Investment.is_active.is_(True)).all()
     items: list[QuoteRefreshItem] = []
     failed: list[str] = []
     updated = skipped = 0
@@ -59,10 +59,14 @@ def refresh_quotes(
 
 @router.get("", response_model=list[InvestmentResponse])
 def list_investments(
+    include_inactive: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return db.query(Investment).all()
+    q = db.query(Investment)
+    if not include_inactive:
+        q = q.filter(Investment.is_active.is_(True))
+    return q.all()
 
 
 @router.post("", response_model=InvestmentResponse, status_code=status.HTTP_201_CREATED)
@@ -83,7 +87,7 @@ def investment_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    investments = db.query(Investment).all()
+    investments = db.query(Investment).filter(Investment.is_active.is_(True)).all()
     total_invested = sum(float(i.amount_invested) for i in investments)
     total_current = sum(float(i.current_value) for i in investments)
     gain_loss = total_current - total_invested

@@ -1,13 +1,4 @@
-"""Cliente Pluggy (Open Finance Brasil via Meu Pluggy).
-
-Fluxo free para uso pessoal:
-1. Cada pessoa conecta seus bancos em https://meu.pluggy.ai (consentimento
-   Open Finance regulado, prazo indeterminado desde a Res. Conjunta 7/2023).
-2. Em https://dashboard.pluggy.ai cria-se uma aplicação → client_id/secret.
-3. Cada conexão bancária vira um Item; o item_id entra em /connections aqui.
-
-Credenciais via env: PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET.
-"""
+"""Cliente Pluggy. Credenciais permanecem apenas no servidor."""
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 import httpx
@@ -71,6 +62,22 @@ def _get(path: str, params: Optional[dict] = None) -> dict:
     return response.json()
 
 
+def create_connect_token() -> str:
+    """Emite token temporário para o Pluggy Connect autenticado."""
+    response = httpx.post(
+        f"{BASE_URL}/connect_token",
+        json={},
+        headers={"X-API-KEY": _get_api_key()},
+        timeout=30,
+    )
+    if response.status_code not in (200, 201):
+        raise PluggyError(f"Pluggy Connect indisponível ({response.status_code})")
+    token = response.json().get("accessToken")
+    if not token:
+        raise PluggyError("Pluggy Connect não retornou accessToken")
+    return token
+
+
 def get_item(item_id: str) -> dict:
     return _get(f"/items/{item_id}")
 
@@ -85,7 +92,9 @@ def list_investments(item_id: str) -> list[dict]:
     page = 1
     while True:
         data = _get("/investments", {"itemId": item_id, "pageSize": 500, "page": page})
-        results.extend(data.get("results", []))
+        if not isinstance(data.get("results"), list):
+            raise PluggyError("Resposta de investimentos incompleta")
+        results.extend(data["results"])
         if page >= data.get("totalPages", 1):
             break
         page += 1

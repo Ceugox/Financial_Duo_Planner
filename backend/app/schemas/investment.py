@@ -41,6 +41,8 @@ class InvestmentResponse(BaseModel):
     broker: Optional[str]
     notes: Optional[str]
     source: str = "manual"
+    is_active: bool = True
+    inactive_at: Optional[datetime] = None
     user_id: int
     created_at: datetime
     updated_at: datetime

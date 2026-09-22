@@ -1,4 +1,5 @@
 """Conexões Open Finance (Pluggy) e import de extrato OFX."""
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -29,6 +30,10 @@ class ConnectionResponse(BaseModel):
     nickname: str
     user_id: int
     last_synced_at: Optional[datetime]
+    last_sync_attempt_at: Optional[datetime]
+    last_sync_error: Optional[str]
+    status: str
+    coverage: dict
 
     model_config = {"from_attributes": True}
 
@@ -36,6 +41,43 @@ class ConnectionResponse(BaseModel):
 class ConnectionsStatus(BaseModel):
     pluggy_configured: bool
     connections: list[ConnectionResponse]
+
+
+class ConnectTokenResponse(BaseModel):
+    access_token: str
+
+
+_PLUGGY_ERROR_STATES = {"LOGIN_ERROR", "OUTDATED", "WAITING_USER_INPUT", "INVALID_CREDENTIALS", "ITEM_NOT_SUPPORTED"}
+
+
+def _pluggy_item_status(item_status: Optional[str]) -> str:
+    return "error" if (item_status or "").upper() in _PLUGGY_ERROR_STATES else "connected"
+
+
+def _connection_response(connection: BankConnection) -> ConnectionResponse:
+    try:
+        coverage = json.loads(connection.coverage_json or "{}")
+    except (ValueError, TypeError):
+        coverage = {}
+    return ConnectionResponse(
+        id=connection.id, provider=connection.provider, item_id=connection.item_id,
+        nickname=connection.nickname, user_id=connection.user_id,
+        last_synced_at=connection.last_synced_at,
+        last_sync_attempt_at=connection.last_sync_attempt_at,
+        last_sync_error=connection.last_sync_error,
+        status=connection.status, coverage=coverage,
+    )
+
+
+@router.post("/connect-token", response_model=ConnectTokenResponse)
+def create_connect_token(_: User = Depends(get_current_user)):
+    try:
+        return ConnectTokenResponse(access_token=pluggy.create_connect_token())
+    except pluggy.PluggyNotConfigured as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except pluggy.PluggyError:
+        logger.exception("Falha ao emitir token de conexão Pluggy")
+        raise HTTPException(status_code=502, detail="Não foi possível iniciar a conexão com a Pluggy")
 
 
 class SyncResult(BaseModel):
@@ -192,7 +234,7 @@ def list_connections(
 ):
     return ConnectionsStatus(
         pluggy_configured=pluggy.is_configured(),
-        connections=db.query(BankConnection).order_by(BankConnection.id).all(),
+        connections=[_connection_response(c) for c in db.query(BankConnection).order_by(BankConnection.id).all()],
     )
 
 
@@ -216,11 +258,12 @@ def create_connection(
         item_id=body.item_id,
         nickname=body.nickname or item.get("connector", {}).get("name", "Banco"),
         user_id=current_user.id,
+        status=_pluggy_item_status(item.get("status")),
     )
     db.add(connection)
     db.commit()
     db.refresh(connection)
-    return connection
+    return _connection_response(connection)
 
 
 @router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -252,6 +295,10 @@ def sync_connection(
     else:
         date_from = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
 
+    connection.last_sync_attempt_at = datetime.now(timezone.utc)
+    connection.status = "syncing"
+    connection.last_sync_error = None
+    db.commit()
     try:
         accounts = pluggy.list_accounts(connection.item_id)
         entries: list[dict] = []
@@ -275,29 +322,36 @@ def sync_connection(
                     "account_name": account_label,
                     "account_type": "credit" if is_credit_card else "checking",
                 })
-    except pluggy.PluggyNotConfigured as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except pluggy.PluggyError as exc:
+    except (pluggy.PluggyNotConfigured, pluggy.PluggyError) as exc:
+        connection.status = "error"
+        connection.last_sync_error = str(exc)[:500]
+        db.commit()
         logger.error("Sync Pluggy falhou: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=400 if isinstance(exc, pluggy.PluggyNotConfigured) else 502, detail=str(exc))
 
     result = _import_entries(db, connection.user_id, entries, source="pluggy")
     connection.last_synced_at = datetime.now(timezone.utc)
+    connection.status = "connected"
+    connection.last_sync_error = None
+    coverage = json.loads(connection.coverage_json or "{}")
+    coverage.update({"accounts": len(accounts), "transactions": "synced", "transactions_from": date_from})
+    connection.coverage_json = json.dumps(coverage)
     db.commit()
 
     return SyncResult(**result, accounts=len(accounts))
 
 
 class InvestmentSyncRequest(BaseModel):
-    # Remove os investimentos cadastrados à mão, deixando só o espelho da corretora
+    # Compatibilidade com clientes antigos: parâmetro ignorado para preservar dados manuais.
     remove_manual: bool = False
 
 
 class InvestmentSyncResult(BaseModel):
     created: int
     updated: int
-    removed_sold: int        # posições desta conexão que sumiram na corretora
-    removed_manual: int
+    removed_sold: int        # campo legado; sempre zero
+    marked_inactive: int
+    removed_manual: int     # campo legado; sempre zero
     total_positions: int
 
 
@@ -335,8 +389,8 @@ def sync_investments(
 ):
     """Espelha as posições da corretora (Open Finance) na carteira.
 
-    Upsert por posição; posições vendidas (desta conexão) saem; com
-    remove_manual=True os cadastros manuais são substituídos pelo espelho.
+    Upsert por posição; posições ausentes são mantidas como histórico inativo.
+    O parâmetro legado remove_manual é ignorado para preservar dados manuais.
     """
     from app.models.investment import Investment
 
@@ -344,13 +398,18 @@ def sync_investments(
     if not connection:
         raise HTTPException(status_code=404, detail="Conexão não encontrada")
 
+    connection.last_sync_attempt_at = datetime.now(timezone.utc)
+    connection.status = "syncing"
+    connection.last_sync_error = None
+    db.commit()
     try:
         positions = pluggy.list_investments(connection.item_id)
-    except pluggy.PluggyNotConfigured as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except pluggy.PluggyError as exc:
+    except (pluggy.PluggyNotConfigured, pluggy.PluggyError) as exc:
+        connection.status = "error"
+        connection.last_sync_error = str(exc)[:500]
+        db.commit()
         logger.error("Sync de investimentos Pluggy falhou: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=400 if isinstance(exc, pluggy.PluggyNotConfigured) else 502, detail=str(exc))
 
     prefix = f"pluggy:{connection.item_id}:"
     existing = {
@@ -392,6 +451,8 @@ def sync_investments(
         if inv:
             for field, value in values.items():
                 setattr(inv, field, value)
+            inv.is_active = True
+            inv.inactive_at = None
             updated += 1
         else:
             db.add(Investment(
@@ -402,26 +463,27 @@ def sync_investments(
             ))
             created += 1
 
-    # Posições desta conexão que não vieram mais (vendidas/zeradas)
-    removed_sold = 0
+    # Histórico de posições encerradas fica consultável sem compor a carteira ativa.
+    marked_inactive = 0
     for external_id, inv in existing.items():
-        if external_id not in seen:
-            db.delete(inv)
-            removed_sold += 1
+        if external_id not in seen and inv.is_active:
+            inv.is_active = False
+            inv.inactive_at = datetime.now(timezone.utc)
+            marked_inactive += 1
 
-    removed_manual = 0
-    if body.remove_manual:
-        manual = db.query(Investment).filter(Investment.source == "manual").all()
-        removed_manual = len(manual)
-        for inv in manual:
-            db.delete(inv)
-
+    connection.last_synced_at = datetime.now(timezone.utc)
+    connection.status = "connected"
+    connection.last_sync_error = None
+    coverage = json.loads(connection.coverage_json or "{}")
+    coverage.update({"investments": "synced", "active_positions": len(seen)})
+    connection.coverage_json = json.dumps(coverage)
     db.commit()
     return InvestmentSyncResult(
         created=created,
         updated=updated,
-        removed_sold=removed_sold,
-        removed_manual=removed_manual,
+        removed_sold=0,
+        marked_inactive=marked_inactive,
+        removed_manual=0,
         total_positions=len(seen),
     )
 

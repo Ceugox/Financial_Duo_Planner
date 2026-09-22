@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -21,6 +21,8 @@ class Investment(Base):
     # (unicidade garantida em código; a coluna nasce por migração, sem constraint)
     external_id: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")  # manual|pluggy
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="TRUE")
+    inactive_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     purchase_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     broker: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

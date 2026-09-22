@@ -12,6 +12,8 @@ class PurchaseGoal(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     target_amount: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
     saved_amount: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False, default=0)
+    monthly_contribution: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False, default=0, server_default="0")
+    saved_amount_source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual", server_default="manual")
     priority: Mapped[str] = mapped_column(String(10), nullable=False, default="media")  # alta|media|baixa
     target_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

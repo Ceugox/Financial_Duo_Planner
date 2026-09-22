@@ -22,12 +22,8 @@ def list_goals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
-        db.query(PurchaseGoal)
-        .filter(PurchaseGoal.user_id == current_user.id)
-        .order_by(PurchaseGoal.created_at.desc())
-        .all()
-    )
+    # Espaço compartilhado do casal: metas são dos dois.
+    return db.query(PurchaseGoal).order_by(PurchaseGoal.created_at.desc()).all()
 
 
 @router.post("", response_model=PurchaseGoalResponse, status_code=status.HTTP_201_CREATED)
@@ -50,9 +46,7 @@ def get_goal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    goal = db.query(PurchaseGoal).filter(
-        PurchaseGoal.id == goal_id, PurchaseGoal.user_id == current_user.id
-    ).first()
+    goal = db.query(PurchaseGoal).filter(PurchaseGoal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Objetivo não encontrado")
     return goal
@@ -65,9 +59,7 @@ def update_goal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    goal = db.query(PurchaseGoal).filter(
-        PurchaseGoal.id == goal_id, PurchaseGoal.user_id == current_user.id
-    ).first()
+    goal = db.query(PurchaseGoal).filter(PurchaseGoal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Objetivo não encontrado")
     for field, value in body.model_dump(exclude_unset=True).items():
@@ -87,9 +79,7 @@ def deposit_to_goal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    goal = db.query(PurchaseGoal).filter(
-        PurchaseGoal.id == goal_id, PurchaseGoal.user_id == current_user.id
-    ).first()
+    goal = db.query(PurchaseGoal).filter(PurchaseGoal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Objetivo não encontrado")
     goal.saved_amount = min(float(goal.saved_amount) + body.amount, float(goal.target_amount))
@@ -105,9 +95,7 @@ def delete_goal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    goal = db.query(PurchaseGoal).filter(
-        PurchaseGoal.id == goal_id, PurchaseGoal.user_id == current_user.id
-    ).first()
+    goal = db.query(PurchaseGoal).filter(PurchaseGoal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Objetivo não encontrado")
     db.delete(goal)
