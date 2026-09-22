@@ -1,59 +1,62 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import { authApi, type UserResponse } from '@/api/auth'
+import { setAccessToken } from '@/api/authSession'
 
 interface AuthState {
-  token: string | null
-  refreshToken: string | null
   user: UserResponse | null
   isAuthenticated: boolean
+  isCheckingSession: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  bootstrap: () => Promise<void>
   loadUser: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      token: null,
-      refreshToken: null,
-      user: null,
-      isAuthenticated: false,
+let bootstrapPromise: Promise<void> | null = null
 
-      login: async (email, password) => {
-        const tokens = await authApi.login({ email, password })
-        set({
-          token: tokens.access_token,
-          refreshToken: tokens.refresh_token,
-          isAuthenticated: true,
-        })
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  isCheckingSession: true,
+
+  login: async (email, password) => {
+    const tokens = await authApi.login({ email, password })
+    setAccessToken(tokens.access_token)
+    const user = await authApi.me()
+    set({ user, isAuthenticated: true, isCheckingSession: false })
+  },
+
+  logout: () => {
+    setAccessToken(null)
+    set({ user: null, isAuthenticated: false, isCheckingSession: false })
+    void authApi.logout().catch(() => undefined).finally(() => window.location.assign('/login'))
+  },
+
+  bootstrap: () => {
+    if (bootstrapPromise) return bootstrapPromise
+    bootstrapPromise = (async () => {
+      localStorage.removeItem('auth-storage')
+      try {
+        const tokens = await authApi.refresh()
+        setAccessToken(tokens.access_token)
         const user = await authApi.me()
-        set({ user })
-      },
+        set({ user, isAuthenticated: true })
+      } catch {
+        setAccessToken(null)
+        set({ user: null, isAuthenticated: false })
+      } finally {
+        set({ isCheckingSession: false })
+      }
+    })()
+    return bootstrapPromise
+  },
 
-      logout: () => {
-        set({ token: null, refreshToken: null, user: null, isAuthenticated: false })
-      },
-
-      loadUser: async () => {
-        if (get().token && !get().user) {
-          try {
-            const user = await authApi.me()
-            set({ user, isAuthenticated: true })
-          } catch {
-            get().logout()
-          }
-        }
-      },
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({
-        token: state.token,
-        refreshToken: state.refreshToken,
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    },
-  ),
-)
+  loadUser: async () => {
+    if (!get().isAuthenticated) return
+    try {
+      set({ user: await authApi.me() })
+    } catch {
+      get().logout()
+    }
+  },
+}))

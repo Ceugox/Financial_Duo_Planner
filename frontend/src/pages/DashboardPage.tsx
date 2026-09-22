@@ -6,6 +6,7 @@ import { dashboardApi } from '@/api/dashboard'
 import { insightsApi } from '@/api/insights'
 import { budgetsApi } from '@/api/budgets'
 import { reviewApi } from '@/api/review'
+import { planApi } from '@/api/plan'
 import { SummaryCards } from '@/components/dashboard/SummaryCards'
 import { MonthlyChart } from '@/components/dashboard/MonthlyChart'
 import { CategoryPieChart } from '@/components/dashboard/CategoryPieChart'
@@ -76,6 +77,8 @@ export function DashboardPage() {
     queryFn: () => budgetsApi.status(month, year),
   })
 
+  const { data: plan, isError: planError } = useQuery({ queryKey: ['plan', 'projection'], queryFn: planApi.projection })
+
   const { data: review } = useQuery({
     queryKey: ['review'],
     queryFn: reviewApi.list,
@@ -124,6 +127,11 @@ export function DashboardPage() {
           </span>
         </Link>
       )}
+
+      <section className="card card-body" aria-label="Resumo do plano financeiro">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}><h3>Plano de 5 e 10 anos</h3><CardLink to="/plano" label="Abrir plano" /></div>
+        {planError ? <p role="status">Resumo indisponível agora. Abra o plano para tentar novamente.</p> : plan ? <p style={{ fontSize: '0.82rem', marginTop: '0.5rem' }}>{plan.goals.length === 0 ? 'Defina uma meta para iniciar o plano.' : `${plan.goals.length} metas · aportes planejados de ${formatBRL(plan.allocation.requested_monthly)}/mês · capacidade observada ${plan.evidence.monthly_capacity === null ? 'ainda indisponível' : formatBRL(plan.evidence.monthly_capacity)}.`}</p> : <p role="status">Carregando resumo...</p>}
+      </section>
 
       {/* Summary cards */}
       {summary && <SummaryCards data={summary} />}

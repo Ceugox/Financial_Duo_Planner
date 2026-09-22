@@ -17,10 +17,10 @@ export function ForecastCard({ forecast }: { forecast: Forecast }) {
       hint: `${forecast.days_remaining} dias restantes`,
     },
     {
-      label: 'Livre por dia',
+      label: 'Margem estimada por dia',
       value: formatBRL(forecast.safe_to_spend_daily),
       color: 'var(--teal-dark)',
-      hint: 'para fechar no zero a zero',
+      hint: 'estimativa antes de imprevistos e metas',
     },
     {
       label: 'Contas já esperadas',
@@ -56,7 +56,8 @@ export function ForecastCard({ forecast }: { forecast: Forecast }) {
           ))}
         </div>
 
-        <div style={{ width: '100%', height: 180 }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>O gráfico mostra gastos acumulados observados e uma projeção para o fim do mês. A renda esperada aparece como linha de referência.</p>
+        <div role="img" aria-label="Gastos observados e projeção diária até o fim do mês" style={{ width: '100%', height: 180 }}>
           <ResponsiveContainer>
             <ComposedChart data={forecast.series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />

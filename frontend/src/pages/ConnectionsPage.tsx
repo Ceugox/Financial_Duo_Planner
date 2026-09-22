@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw, Trash2, Landmark, FileUp, ExternalLink, TrendingUp, ArrowLeftRight } from 'lucide-react'
+import { PluggyConnect } from 'react-pluggy-connect'
 import axios from 'axios'
 import { connectionsApi, type BankConnection, type SyncResult, type OfxImportResult, type InvestmentSyncResult } from '@/api/connections'
 import { transferRulesApi } from '@/api/transferRules'
@@ -54,8 +55,7 @@ function InvSyncSummary({ result }: { result: InvestmentSyncResult }) {
       <span><strong>{result.total_positions}</strong> posições na corretora</span>
       <span>· <strong>{result.created}</strong> novas</span>
       <span>· <strong>{result.updated}</strong> atualizadas</span>
-      {result.removed_sold > 0 && <span>· <strong>{result.removed_sold}</strong> vendidas removidas</span>}
-      {result.removed_manual > 0 && <span>· <strong>{result.removed_manual}</strong> manuais substituídas</span>}
+      {result.marked_inactive > 0 && <span>· <strong>{result.marked_inactive}</strong> posições encerradas preservadas no histórico</span>}
     </div>
   )
 }
@@ -176,18 +176,24 @@ export function ConnectionsPage() {
   const [invSyncConn, setInvSyncConn] = useState<BankConnection | undefined>()
   const [invResults, setInvResults] = useState<Record<number, InvestmentSyncResult>>({})
   const [ofxResult, setOfxResult] = useState<OfxImportResult | undefined>()
+  const [connectToken, setConnectToken] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: status, isLoading } = useQuery({ queryKey: ['connections'], queryFn: connectionsApi.status })
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: authApi.users })
 
   const createMutation = useMutation({
-    mutationFn: () => connectionsApi.create(itemId.trim(), nickname.trim()),
+    mutationFn: ({ id, nick }: { id: string; nick: string }) => connectionsApi.create(id, nick),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['connections'] })
       setItemId('')
       setNickname('')
     },
+  })
+
+  const connectTokenMutation = useMutation({
+    mutationFn: connectionsApi.connectToken,
+    onSuccess: (data) => setConnectToken(data.access_token),
   })
 
   const deleteMutation = useMutation({
@@ -208,7 +214,7 @@ export function ConnectionsPage() {
   })
 
   const invSyncMutation = useMutation({
-    mutationFn: (conn: BankConnection) => connectionsApi.syncInvestments(conn.id, true),
+    mutationFn: (conn: BankConnection) => connectionsApi.syncInvestments(conn.id),
     onSuccess: (result, conn) => {
       setInvResults((prev) => ({ ...prev, [conn.id]: result }))
       qc.invalidateQueries({ queryKey: ['investments'] })
@@ -255,8 +261,9 @@ export function ConnectionsPage() {
               lineHeight: 1.7,
             }}>
               <p style={{ fontWeight: 700, marginBottom: '0.375rem' }}>Integração ainda não configurada</p>
+              <p>A disponibilidade de conectores regulados e eventuais custos dependem do plano contratado com a Pluggy. Seus lançamentos manuais permanecem preservados.</p>
               <ol style={{ paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <li>Cada um cria conta no <strong>meu.pluggy.ai</strong> e conecta seus bancos (consentimento Open Finance oficial, gratuito).</li>
+                <li>Cada um cria conta no <strong>meu.pluggy.ai</strong> e conecta seus bancos (consentimento conforme a disponibilidade e as condições da Pluggy).</li>
                 <li>Crie uma aplicação em <strong>dashboard.pluggy.ai</strong> e copie o client ID e o secret.</li>
                 <li>No servidor, defina <code>PLUGGY_CLIENT_ID</code> e <code>PLUGGY_CLIENT_SECRET</code> no <code>.env</code> e reinicie.</li>
                 <li>Volte aqui e cadastre o <em>item ID</em> de cada conexão bancária.</li>
@@ -271,7 +278,7 @@ export function ConnectionsPage() {
               <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--purple-dark)', marginBottom: '0.25rem' }}>
                 Nenhuma conta conectada
               </p>
-              <p style={{ fontSize: '0.78rem' }}>Cadastre o item ID da conexão feita no Meu Pluggy</p>
+              <p style={{ fontSize: '0.78rem' }}>Cadastre um item ID validado pela Pluggy ou importe um extrato OFX</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
@@ -298,6 +305,16 @@ export function ConnectionsPage() {
                         {' · '}
                         {conn.last_synced_at ? `sincronizado ${formatDate(conn.last_synced_at)}` : 'nunca sincronizado'}
                       </p>
+                      <p style={{ fontSize: '0.72rem', color: conn.status === 'error' ? 'var(--coral)' : 'var(--text-3)' }}>
+                        Estado: {conn.status === 'error' ? 'falha de sincronização' : conn.status === 'syncing' ? 'sincronizando' : 'conectada'}
+                        {conn.last_sync_attempt_at ? ` · última tentativa ${formatDate(conn.last_sync_attempt_at)}` : ''}
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>
+                        Cobertura: {conn.coverage.accounts === undefined ? 'contas ainda não verificadas' : `${conn.coverage.accounts} conta(s)`}
+                        {conn.coverage.transactions === 'synced' ? ' · transações importadas' : ''}
+                        {conn.coverage.investments === 'synced' ? ` · ${conn.coverage.active_positions ?? 0} posição(ões) ativa(s)` : ' · investimentos não verificados'}
+                      </p>
+                      {conn.last_sync_error && <p role="alert" style={{ fontSize: '0.72rem', color: 'var(--coral)' }}>Última falha: {conn.last_sync_error}</p>}
                     </div>
                     <button
                       onClick={() => syncMutation.mutate(conn.id)}
@@ -335,9 +352,44 @@ export function ConnectionsPage() {
             </p>
           )}
 
-          {/* Nova conexão */}
+          {/* Nova conexão: widget Pluggy Connect quando a integração está configurada */}
+          {configured && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.625rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => connectTokenMutation.mutate()}
+                disabled={connectTokenMutation.isPending}
+                className="btn btn-primary"
+              >
+                <Plus size={15} /> {connectTokenMutation.isPending ? 'Abrindo...' : 'Conectar banco via Pluggy'}
+              </button>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>
+                O consentimento é dado dentro do widget da Pluggy; nenhuma credencial passa por este app.
+              </span>
+            </div>
+          )}
+          {connectTokenMutation.isError && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--coral)' }}>
+              {errorDetail(connectTokenMutation.error, 'Não foi possível iniciar a conexão com a Pluggy.')}
+            </p>
+          )}
+          {connectToken && (
+            <PluggyConnect
+              connectToken={connectToken}
+              language="pt"
+              onSuccess={({ item }) => {
+                createMutation.mutate({ id: item.id, nick: item.connector?.name ?? '' })
+                setConnectToken(null)
+              }}
+              onError={() => setConnectToken(null)}
+              onClose={() => setConnectToken(null)}
+            />
+          )}
+
+          <details style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
+            <summary>Cadastrar item ID manualmente</summary>
           <form
-            onSubmit={(e) => { e.preventDefault(); if (itemId.trim()) createMutation.mutate() }}
+            onSubmit={(e) => { e.preventDefault(); if (itemId.trim()) createMutation.mutate({ id: itemId.trim(), nick: nickname.trim() }) }}
             style={{ display: 'flex', flexWrap: 'wrap', gap: '0.625rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}
           >
             <input
@@ -360,6 +412,7 @@ export function ConnectionsPage() {
               <Plus size={15} /> {createMutation.isPending ? 'Validando...' : 'Conectar'}
             </button>
           </form>
+          </details>
           {createMutation.isError && (
             <p style={{ fontSize: '0.8rem', color: 'var(--coral)' }}>
               {errorDetail(createMutation.error, 'Não foi possível validar este item na Pluggy.')}
@@ -424,7 +477,7 @@ export function ConnectionsPage() {
         open={Boolean(invSyncConn)}
         onOpenChange={(open) => { if (!open) setInvSyncConn(undefined) }}
         title="Sincronizar investimentos"
-        description={`As posições de "${invSyncConn?.nickname ?? ''}" serão espelhadas na carteira e os investimentos cadastrados manualmente serão REMOVIDOS — o Open Finance passa a ser a fonte da carteira. Posições vendidas na corretora também saem. Sincronizações futuras só atualizam os valores.`}
+        description={`As posições de "${invSyncConn?.nickname ?? ''}" serão atualizadas pela Pluggy. Investimentos manuais permanecem. Posições não encontradas serão marcadas inativas e preservadas no histórico.`}
         isPending={invSyncMutation.isPending}
         onConfirm={() => { if (invSyncConn) invSyncMutation.mutate(invSyncConn) }}
       />

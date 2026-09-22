@@ -5,6 +5,8 @@ export interface PurchaseGoal {
   name: string
   target_amount: number
   saved_amount: number
+  monthly_contribution: number
+  saved_amount_source: 'manual' | 'linked'
   priority: 'alta' | 'media' | 'baixa'
   target_date: string | null
   category: string | null
@@ -20,6 +22,8 @@ export interface GoalCreate {
   name: string
   target_amount: number
   saved_amount?: number
+  monthly_contribution?: number
+  saved_amount_source?: 'manual' | 'linked'
   priority?: string
   target_date?: string | null
   category?: string | null

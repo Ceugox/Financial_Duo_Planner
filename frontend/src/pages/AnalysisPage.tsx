@@ -150,7 +150,8 @@ export function AnalysisPage() {
             média de {formatBRL(data.avg_expense)}/mês · o mês atual é parcial
           </span>
         </div>
-        <div className="card-body" style={{ height: 300 }}>
+        <p style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-2)' }}>Despesas mensais em barras e receitas em linha. Média de despesas: {formatBRL(data.avg_expense)}. O mês atual está incompleto.</p>
+        <div className="card-body" role="img" aria-label="Receitas e despesas mensais do período" style={{ height: 300 }}>
           <ResponsiveContainer>
             <ComposedChart data={monthlyData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -189,7 +190,8 @@ export function AnalysisPage() {
           </div>
         ) : (
           <>
-            <div className="card-body" style={{ height: 280, paddingBottom: 0 }}>
+            <p style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-2)' }}>Tendência das {topCategories.length} categorias com maior gasto. A tabela abaixo traz os valores mensais médios.</p>
+            <div className="card-body" role="img" aria-label="Tendência de gastos por categoria no período selecionado" style={{ height: 280, paddingBottom: 0 }}>
               <ResponsiveContainer>
                 <ComposedChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />

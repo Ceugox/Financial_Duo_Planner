@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, Plus, Check, X, CalendarDays, Timer } from 'lucide-react'
+import { Pencil, Trash2, Plus, Check, X, CalendarDays } from 'lucide-react'
 import type { PurchaseGoal } from '@/api/goals'
 import { goalsApi } from '@/api/goals'
 import { formatBRL, formatDate } from '@/lib/formatters'
@@ -13,10 +13,9 @@ const PRIORITY_VARIANTS: Record<string, 'danger' | 'warning' | 'info'> = { alta:
 interface Props {
   goal: PurchaseGoal
   onEdit: () => void
-  monthlySavings?: number
 }
 
-export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
+export function GoalCard({ goal, onEdit }: Props) {
   const qc = useQueryClient()
   const [depositAmount, setDepositAmount] = useState('')
   const [showDeposit, setShowDeposit] = useState(false)
@@ -25,14 +24,12 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
   const progress  = Math.min((goal.saved_amount / goal.target_amount) * 100, 100)
   const remaining = goal.target_amount - goal.saved_amount
 
-  const monthsEstimate = monthlySavings && monthlySavings > 0 && !goal.is_completed
-    ? Math.ceil(remaining / monthlySavings)
-    : null
 
   const depositMutation = useMutation({
     mutationFn: ({ id, amount }: { id: number; amount: number }) => goalsApi.deposit(id, amount),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
       setDepositAmount('')
       setShowDeposit(false)
     },
@@ -42,6 +39,7 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
     mutationFn: goalsApi.delete,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
       setDeleteOpen(false)
     },
   })
@@ -102,8 +100,8 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.125rem', flexShrink: 0 }}>
-            <button onClick={onEdit} className="btn btn-ghost btn-icon"><Pencil size={13} /></button>
-            <button onClick={() => setDeleteOpen(true)} className="btn btn-danger btn-icon"><Trash2 size={13} /></button>
+            <button onClick={onEdit} aria-label={`Editar ${goal.name}`} className="btn btn-ghost btn-icon"><Pencil size={13} /></button>
+            <button onClick={() => setDeleteOpen(true)} aria-label={`Excluir ${goal.name}`} className="btn btn-danger btn-icon"><Trash2 size={13} /></button>
           </div>
         </div>
 
@@ -139,11 +137,6 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
               <CalendarDays size={11} /> {formatDate(goal.target_date)}
             </span>
           )}
-          {monthsEstimate && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', background: 'var(--teal-light)', color: 'var(--teal-dark)', padding: '0.25rem 0.625rem', borderRadius: 99, fontWeight: 500 }}>
-              <Timer size={11} /> ~{monthsEstimate} {monthsEstimate === 1 ? 'mês' : 'meses'}
-            </span>
-          )}
         </div>
 
         {/* Deposit */}
@@ -153,6 +146,7 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
                   type="number" min="0.01" step="0.01"
+                  aria-label={`Valor a adicionar em ${goal.name}`}
                   placeholder="R$ 0,00"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
@@ -166,7 +160,7 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
                   className="btn btn-primary"
                   style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}
                 >
-                  {depositMutation.isPending ? '...' : 'OK'}
+                  {depositMutation.isPending ? 'Salvando...' : 'Adicionar'}
                 </button>
                 <button onClick={() => setShowDeposit(false)} aria-label="Cancelar depósito" className="btn btn-secondary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>
                   <X size={14} />
@@ -192,6 +186,7 @@ export function GoalCard({ goal, onEdit, monthlySavings }: Props) {
         )}
       </div>
 
+      {!goal.is_completed && <p style={{ padding: '0 1.25rem 1rem', fontSize: '0.75rem', color: 'var(--text-2)' }}>Aporte planejado: {formatBRL(goal.monthly_contribution ?? 0)}/mês. Valor reservado: {goal.saved_amount_source === 'linked' ? 'vinculado a dados' : 'informado manualmente'}.</p>}
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

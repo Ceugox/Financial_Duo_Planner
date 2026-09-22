@@ -7,6 +7,10 @@ export interface BankConnection {
   nickname: string
   user_id: number
   last_synced_at: string | null
+  last_sync_attempt_at: string | null
+  last_sync_error: string | null
+  status: string
+  coverage: { accounts?: number; transactions?: string; transactions_from?: string; investments?: string; active_positions?: number }
 }
 
 export interface ConnectionsStatus {
@@ -36,11 +40,14 @@ export interface InvestmentSyncResult {
   created: number
   updated: number
   removed_sold: number
+  marked_inactive: number
   removed_manual: number
   total_positions: number
 }
 
 export const connectionsApi = {
+  connectToken: () => api.post<{ access_token: string }>('/connections/connect-token').then((r) => r.data),
+
   status: () => api.get<ConnectionsStatus>('/connections').then((r) => r.data),
 
   create: (item_id: string, nickname: string) =>
@@ -51,9 +58,9 @@ export const connectionsApi = {
   sync: (id: number) =>
     api.post<SyncResult>(`/connections/${id}/sync`).then((r) => r.data),
 
-  syncInvestments: (id: number, remove_manual: boolean) =>
+  syncInvestments: (id: number) =>
     api
-      .post<InvestmentSyncResult>(`/connections/${id}/sync-investments`, { remove_manual })
+      .post<InvestmentSyncResult>(`/connections/${id}/sync-investments`, { remove_manual: false })
       .then((r) => r.data),
 
   importOfx: (file: File) => {

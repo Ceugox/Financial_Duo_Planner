@@ -12,6 +12,8 @@ export interface Investment {
   broker: string | null
   notes: string | null
   source: string
+  is_active: boolean
+  inactive_at: string | null
   user_id: number
   created_at: string
   updated_at: string
@@ -46,6 +48,8 @@ export interface QuoteRefreshResult {
 
 export const investmentsApi = {
   list: () => api.get<Investment[]>('/investments').then((r) => r.data),
+  listIncludingInactive: () =>
+    api.get<Investment[]>('/investments', { params: { include_inactive: true } }).then((r) => r.data),
   refreshQuotes: () => api.post<QuoteRefreshResult>('/investments/refresh-quotes').then((r) => r.data),
   get: (id: number) => api.get<Investment>(`/investments/${id}`).then((r) => r.data),
   create: (data: InvestmentCreate) => api.post<Investment>('/investments', data).then((r) => r.data),

@@ -8,6 +8,7 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { TransactionsPage } from '@/pages/TransactionsPage'
 import { InvestmentsPage } from '@/pages/InvestmentsPage'
 import { GoalsPage } from '@/pages/GoalsPage'
+import { PlanPage } from '@/pages/PlanPage'
 import { BudgetPage } from '@/pages/BudgetPage'
 import { AnalysisPage } from '@/pages/AnalysisPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
@@ -42,6 +43,7 @@ export default function App() {
               <Route path="analise" element={<AnalysisPage />} />
               <Route path="investimentos" element={<InvestmentsPage />} />
               <Route path="objetivos" element={<GoalsPage />} />
+              <Route path="plano" element={<PlanPage />} />
               <Route path="categorias" element={<CategoriesPage />} />
               <Route path="conexoes" element={<ConnectionsPage />} />
             </Route>

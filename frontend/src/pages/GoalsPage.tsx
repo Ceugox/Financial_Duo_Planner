@@ -2,30 +2,19 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Target, ChevronDown, ChevronRight } from 'lucide-react'
 import { goalsApi, type PurchaseGoal } from '@/api/goals'
-import { dashboardApi } from '@/api/dashboard'
 import { Dialog, DialogContent } from '@/components/ui/Dialog'
 import { GoalCard } from '@/components/goals/GoalCard'
 import { GoalForm } from '@/components/goals/GoalForm'
-import { currentMonthYear } from '@/lib/formatters'
 
 export function GoalsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editGoal, setEditGoal] = useState<PurchaseGoal | undefined>()
   const [showCompleted, setShowCompleted] = useState(false)
 
-  const { month, year } = currentMonthYear()
-
   const { data: goals, isLoading } = useQuery({
     queryKey: ['goals'],
     queryFn: goalsApi.list,
   })
-
-  const { data: dashboardSummary } = useQuery({
-    queryKey: ['dashboard-summary', month, year],
-    queryFn: () => dashboardApi.summary(month, year),
-  })
-
-  const monthlySavings = dashboardSummary?.month_balance ?? 0
 
   const openNew = () => { setEditGoal(undefined); setDialogOpen(true) }
   const openEdit = (goal: PurchaseGoal) => { setEditGoal(goal); setDialogOpen(true) }
@@ -40,7 +29,7 @@ export function GoalsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: 'var(--purple-deep)', marginBottom: '0.25rem' }}>
-            Objetivos de Compra
+            Objetivos financeiros
           </h2>
           <p style={{ fontSize: '0.8rem', color: 'var(--purple-light)' }}>
             {activeGoals.length} em andamento · {completedGoals.length} concluídos
@@ -76,7 +65,6 @@ export function GoalsPage() {
               key={goal.id}
               goal={goal}
               onEdit={() => openEdit(goal)}
-              monthlySavings={monthlySavings}
             />
           ))}
         </div>
