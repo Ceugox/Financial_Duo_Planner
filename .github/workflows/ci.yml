@@ -5,16 +5,8 @@
 # nodejs_20. Se elas mudarem la, mudam aqui, e a divergencia quebra no CI e
 # nao no deploy.
 #
-# O backend ainda nao tem suite de teste: o portao dele hoje instala as
-# dependencias e compila todo o codigo, o que pega erro de sintaxe e
-# dependencia quebrada, e nao pega erro de comportamento. Quando existir
-# suite, ela entra aqui no lugar do compileall.
-#
-# O `npm run lint` esta fora do portao de proposito: em 14/09/2026 ele falha
-# com 5 erros de `no-explicit-any` que ja estavam no repo. Portao que nasce
-# vermelho vira ruido e ninguem olha. Quem corrigir os 5 acrescenta a linha
-# `- run: npm run lint` antes do build. O `npm run build` roda `tsc -b`, entao
-# erro de tipo ja quebra aqui.
+# O backend roda a suite pytest (backend/tests) sobre SQLite em memoria:
+# compileall continua antes dela porque pega erro de sintaxe mais rapido.
 name: ci
 
 on:
@@ -32,6 +24,7 @@ jobs:
           python-version: '3.10'
       - run: uv venv .venv && uv pip install -r backend/requirements.txt
       - run: .venv/bin/python -m compileall -q backend/app
+      - run: .venv/bin/python -m pytest backend/tests -q
 
   frontend:
     runs-on: ubuntu-latest
@@ -44,4 +37,5 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
+      - run: npm run lint
       - run: npm run build
